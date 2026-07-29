@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marvel Champions - MVP Solo</title>
+    <title>Marvel Champions - VTT Solo</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     
+    <!-- Panneau d'inspection latéral gauche -->
     <div id="side-panel">
         <div id="zoom-container">
             <img id="zoom-img" src="https://placehold.co/300x420/2c3e50/FFF?text=Clique+sur+une+carte" alt="Zoom">
@@ -19,31 +20,80 @@
         </div>
     </div>
 
+    <!-- Zone principale -->
     <div id="main-area">
+        <!-- Barre de Menu Haute -->
         <div id="ui-panel">
-            <button id="btn-load-deck">Charger Spidey</button>
-            <button id="btn-load-rhino" style="background-color: #8e44ad;">Mise en place : Rhino</button>
-            <p style="margin-left: 20px; font-size: 0.9em;">
-                <strong>Clic droit :</strong> Menu | <strong>Glisser :</strong> Change de taille selon la zone.
-            </p>
+            <button id="btn-open-menu" style="background-color: #f39c12; color: #2c3e50; font-size: 1.1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">☰ Menu Principal</button>
+            
+            <!-- BOUTON NEMESIS (Caché par défaut, activé par le JS) -->
+            <button id="btn-add-nemesis" class="hidden" style="background-color: #8e44ad; color: white; font-size: 1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-radius: 5px; cursor: pointer; border: none; font-weight: bold; margin-left: 15px;">😈 Ajouter Némésis</button>
+
+            <!-- Traqueur de Héros -->
+            <div id="hero-tracker" class="hidden" style="margin-left: auto;">
+                <div class="tracker-item">
+                    <span class="tracker-label">PV Héros:</span>
+                    <input type="number" id="hero-hp-input" value="0" min="0">
+                </div>
+                <div class="tracker-item">
+                    <span class="tracker-label">Taille de Main:</span>
+                    <span id="hero-hand-size" class="tracker-value">0</span>
+                </div>
+            </div>
         </div>
 
+        <!-- Espace de jeu -->
         <div id="board-wrapper">
             <div id="game-board"></div>
+            
+            <!-- Panneau des phases -->
+            <div id="phase-panel">
+                <h3>PHASES DE JEU</h3>
+                <ul id="phase-list">
+                    <li class="active">1. Phase des Joueurs</li>
+                    <li>2. Fin de Phase Joueur (Redressement)</li>
+                    <li>3. Phase du Méchant : Ajout de Menace</li>
+                    <li>4. Phase du Méchant : Activation</li>
+                    <li>5. Phase du Méchant : Cartes Rencontre</li>
+                    <li>6. Fin du Round</li>
+                </ul>
+                <button id="btn-next-phase">Phase Suivante</button>
+            </div>
         </div>
 
+        <!-- HUD du bas -->
         <div id="bottom-hud">
-            <div class="deck-area"><div id="deck" class="hidden">PIOCHE <br><span id="deck-count">0</span></div></div>
-            <div id="hand-area"></div>
-            <div class="deck-area"><div id="discard-pile">DÉFAUSSE <br><span id="discard-count">0</span></div></div>
+            <div class="deck-area">
+                <div id="deck" class="hidden pile-element" data-pile="player-deck">
+                    PIOCHE <br><span id="deck-count">0</span>
+                </div>
+            </div>
             
-            <div style="width: 2px; background: #000; margin: 0 10px;"></div> 
+            <div id="hand-area"></div>
+            
+            <div class="deck-area">
+                <div id="discard-pile" class="pile-element" data-pile="player-discard">
+                    DÉFAUSSE <br><span id="discard-count">0</span>
+                </div>
+            </div>
+            
+            <div style="width: 2px; background: #000; margin: 0 5px;"></div> 
 
-            <div class="deck-area"><div id="encounter-deck" class="hidden">RENCONTRE <br><span id="encounter-deck-count">0</span></div></div>
-            <div class="deck-area"><div id="encounter-discard-pile">DÉFAUSSE <br>MÉCHANT <br><span id="encounter-discard-count">0</span></div></div>
+            <div class="deck-area">
+                <div id="encounter-deck" class="hidden pile-element" data-pile="encounter-deck">
+                    RENCONTRE <br><span id="encounter-deck-count">0</span>
+                </div>
+            </div>
+            
+            <div class="deck-area">
+                <div id="encounter-discard-pile" class="pile-element" data-pile="encounter-discard">
+                    DÉFAUSSE <br>MÉCHANT <br><span id="encounter-discard-count">0</span>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Menus Contextuels et Modales -->
     <div id="context-menu" class="hidden">
         <div class="menu-item" id="menu-flip">Retourner (Face A / B)</div>
         <div class="menu-item" id="menu-exhaust">Incliner / Redresser</div>
@@ -54,7 +104,54 @@
         <div class="menu-item" id="menu-thrt-plus">Ajouter 1 Menace (Jaune)</div>
         <div class="menu-item" id="menu-thrt-minus">Retirer 1 Menace</div>
         <div class="menu-separator"></div>
+        <div class="menu-item" id="menu-return-top">Remettre au dessus du deck</div>
+        <div class="menu-item" id="menu-return-bottom">Remettre sous le deck</div>
+        <div class="menu-item" id="menu-return-shuffle">Mélanger dans le deck</div>
+        <div class="menu-separator"></div>
         <div class="menu-item" id="menu-discard">Défausser</div>
+    </div>
+
+    <div id="pile-context-menu" class="hidden">
+        <div class="menu-item" id="menu-pile-inspect">Consulter</div>
+        <div class="menu-item" id="menu-pile-shuffle">Mélanger le deck</div>
+    </div>
+
+    <div id="modal-inspect" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Inspection</h3>
+                <button id="modal-close">&times;</button>
+            </div>
+            <div id="modal-cards-container"></div>
+        </div>
+    </div>
+
+    <!-- MODALE DU MENU PRINCIPAL -->
+    <div id="modal-menu" class="modal hidden">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Menu Principal</h3>
+                <button id="modal-menu-close">&times;</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                
+                <div style="background: #1a252f; padding: 15px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #3498db;">Charger un Deck Joueur (MarvelCDB)</h4>
+                    <input type="text" id="deck-url-input" placeholder="Ex: https://marvelcdb.com/decklist/view/63906/..." style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #7f8c8d; background: #2c3e50; color: white; margin-bottom: 10px;">
+                    <button id="btn-load-custom-deck" style="width: 100%; background-color: #27ae60; padding: 12px; font-size: 1em;">Charger via URL</button>
+                </div>
+
+                <div style="background: #1a252f; padding: 15px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #f1c40f;">Decks Préconstruits</h4>
+                    <button id="btn-load-deck" style="width: 100%; padding: 12px;">Spider-Man (Base)</button>
+                </div>
+
+                <div style="background: #1a252f; padding: 15px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #e74c3c;">Mise en place du Méchant</h4>
+                    <button id="btn-load-rhino" style="width: 100%; padding: 12px; background-color: #8e44ad;">Charger Rhino</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
