@@ -1,0 +1,62 @@
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; color: white; overflow: hidden; display: flex; height: 100vh; }
+
+#side-panel { width: 320px; background-color: #1a252f; border-right: 3px solid #000; display: flex; flex-direction: column; padding: 15px; z-index: 100; }
+#zoom-container img { width: 100%; border-radius: 10px; margin-bottom: 15px; }
+#zoom-title { margin: 0 0 5px 0; color: #e74c3c; text-transform: uppercase; }
+#zoom-traits { margin: 0 0 15px 0; font-style: italic; color: #bdc3c7; font-size: 0.9em; }
+#zoom-desc { font-size: 0.95em; line-height: 1.5; text-align: justify; }
+
+#main-area { flex: 1; display: flex; flex-direction: column; }
+#ui-panel { background: #2c3e50; padding: 15px; display: flex; align-items: center; border-bottom: 2px solid #000; z-index: 10; }
+button { padding: 10px 15px; background-color: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+button:hover { background-color: #c0392b; }
+.hidden { display: none !important; }
+
+#board-wrapper { flex: 1; overflow: hidden; background-color: #1e272e; position: relative; cursor: grab; }
+#board-wrapper:active { cursor: grabbing; }
+
+#game-board {
+    position: absolute; width: 4000px; height: 4000px; background-color: #34495e;
+    background-image: radial-gradient(#2c3e50 20%, transparent 20%);
+    background-size: 50px 50px; transform-origin: top left;
+}
+
+#bottom-hud { height: 180px; background-color: #2c3e50; border-top: 3px solid #000; display: flex; z-index: 50; box-shadow: 0 -4px 10px rgba(0,0,0,0.5); }
+#deck-area, #discard-area { width: 150px; display: flex; justify-content: center; align-items: center; padding: 10px; }
+#hand-area { flex: 1; display: flex; gap: 10px; padding: 10px; overflow-x: auto; align-items: center; justify-content: center; }
+
+#deck, #discard-pile { width: 100px; height: 140px; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; text-align: center; }
+#deck { background: linear-gradient(135deg, #2980b9, #8e44ad); border: 3px solid #fff; cursor: pointer; }
+#deck:hover { transform: translateY(-3px); }
+#discard-pile { background: #7f8c8d; border: 3px dashed #bdc3c7; }
+
+.card {
+    position: absolute; width: 150px; height: 210px; border-radius: 8px; box-shadow: 2px 2px 8px rgba(0,0,0,0.6);
+    cursor: grab; user-select: none; transition: transform 0.2s ease;
+}
+.card-front { width: 100%; height: 100%; border-radius: 8px; pointer-events: none; }
+.card.exhausted { transform: rotate(90deg); }
+.card.in-hand { position: relative; width: 100px; height: 140px; left: 0 !important; top: 0 !important; transform: none !important; }
+
+/* DRAG & DROP : Les deux états de survol */
+.card.is-dragging-board {
+    pointer-events: none !important; z-index: 9999 !important; transition: none !important;
+    width: 150px; height: 210px;
+}
+.card.is-dragging-hud {
+    position: fixed !important; pointer-events: none !important; z-index: 9999 !important; transition: none !important;
+    width: 100px; height: 140px; transform: none !important;
+}
+
+.token { position: absolute; top: -10px; right: -10px; background-color: #c0392b; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; z-index: 10; }
+
+/* --- MENU CONTEXTUEL --- */
+#context-menu {
+    position: fixed; background: #ecf0f1; color: #2c3e50; border-radius: 5px;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.5); padding: 5px 0; z-index: 10000;
+    min-width: 200px; font-size: 0.9em;
+}
+.menu-item { padding: 10px 15px; cursor: pointer; font-weight: bold; }
+.menu-item:hover { background-color: #3498db; color: white; }
+.menu-separator { height: 1px; background-color: #bdc3c7; margin: 5px 0; }

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marvel Champions - MVP Solo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    
+    <div id="side-panel">
+        <div id="zoom-container">
+            <img id="zoom-img" src="https://placehold.co/300x420/2c3e50/FFF?text=Clique+sur+une+carte" alt="Zoom">
+        </div>
+        <div id="zoom-text">
+            <h2 id="zoom-title">---</h2>
+            <h4 id="zoom-traits"></h4>
+            <p id="zoom-desc">Sélectionne une carte pour la lire.</p>
+        </div>
+    </div>
+
+    <div id="main-area">
+        <div id="ui-panel">
+            <button id="btn-load-deck">Charger Deck Spider-Man</button>
+            <p style="margin-left: 20px; font-size: 0.9em;">
+                <strong>Clic droit sur carte :</strong> Menu des actions | <strong>Glisser :</strong> Change de taille selon la zone.
+            </p>
+        </div>
+
+        <div id="board-wrapper">
+            <div id="game-board"></div>
+        </div>
+
+        <div id="bottom-hud">
+            <div id="deck-area">
+                <div id="deck" class="hidden">
+                    PIOCHE <br><span id="deck-count">0</span>
+                </div>
+            </div>
+            
+            <div id="hand-area"></div>
+            
+            <div id="discard-area">
+                <div id="discard-pile">
+                    DÉFAUSSE <br><span id="discard-count">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LE MENU CONTEXTUEL CACHÉ -->
+    <div id="context-menu" class="hidden">
+        <div class="menu-item" id="menu-flip">Retourner (Face B / Dos)</div>
+        <div class="menu-item" id="menu-exhaust">Incliner / Redresser</div>
+        <div class="menu-separator"></div>
+        <div class="menu-item" id="menu-dmg-plus">Ajouter 1 Dégât</div>
+        <div class="menu-item" id="menu-dmg-minus">Retirer 1 Dégât</div>
+        <div class="menu-separator"></div>
+        <div class="menu-item" id="menu-discard">Défausser</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
