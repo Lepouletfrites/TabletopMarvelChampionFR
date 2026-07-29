@@ -21,9 +21,10 @@
 
     <div id="main-area">
         <div id="ui-panel">
-            <button id="btn-load-deck">Charger Deck Spider-Man</button>
+            <button id="btn-load-deck">Charger Spidey</button>
+            <button id="btn-load-rhino" style="background-color: #8e44ad;">Mise en place : Rhino</button>
             <p style="margin-left: 20px; font-size: 0.9em;">
-                <strong>Clic droit sur carte :</strong> Menu des actions | <strong>Glisser :</strong> Change de taille selon la zone.
+                <strong>Clic droit :</strong> Menu | <strong>Glisser :</strong> Change de taille selon la zone.
             </p>
         </div>
 
@@ -32,29 +33,26 @@
         </div>
 
         <div id="bottom-hud">
-            <div id="deck-area">
-                <div id="deck" class="hidden">
-                    PIOCHE <br><span id="deck-count">0</span>
-                </div>
-            </div>
-            
+            <div class="deck-area"><div id="deck" class="hidden">PIOCHE <br><span id="deck-count">0</span></div></div>
             <div id="hand-area"></div>
+            <div class="deck-area"><div id="discard-pile">DÉFAUSSE <br><span id="discard-count">0</span></div></div>
             
-            <div id="discard-area">
-                <div id="discard-pile">
-                    DÉFAUSSE <br><span id="discard-count">0</span>
-                </div>
-            </div>
+            <div style="width: 2px; background: #000; margin: 0 10px;"></div> 
+
+            <div class="deck-area"><div id="encounter-deck" class="hidden">RENCONTRE <br><span id="encounter-deck-count">0</span></div></div>
+            <div class="deck-area"><div id="encounter-discard-pile">DÉFAUSSE <br>MÉCHANT <br><span id="encounter-discard-count">0</span></div></div>
         </div>
     </div>
 
-    <!-- LE MENU CONTEXTUEL CACHÉ -->
     <div id="context-menu" class="hidden">
-        <div class="menu-item" id="menu-flip">Retourner (Face B / Dos)</div>
+        <div class="menu-item" id="menu-flip">Retourner (Face A / B)</div>
         <div class="menu-item" id="menu-exhaust">Incliner / Redresser</div>
         <div class="menu-separator"></div>
-        <div class="menu-item" id="menu-dmg-plus">Ajouter 1 Dégât</div>
+        <div class="menu-item" id="menu-dmg-plus">Ajouter 1 Dégât (Rouge)</div>
         <div class="menu-item" id="menu-dmg-minus">Retirer 1 Dégât</div>
+        <div class="menu-separator"></div>
+        <div class="menu-item" id="menu-thrt-plus">Ajouter 1 Menace (Jaune)</div>
+        <div class="menu-item" id="menu-thrt-minus">Retirer 1 Menace</div>
         <div class="menu-separator"></div>
         <div class="menu-item" id="menu-discard">Défausser</div>
     </div>
