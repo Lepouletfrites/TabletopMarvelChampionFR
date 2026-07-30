@@ -155,13 +155,16 @@
                         <option value="none">Aucun (Non recommandé)</option>
                     </select>
 
-                    <label class="menu-label">Set Modulaire :</label>
-                    <select id="modular-select" class="menu-select">
-                        <option value="none">-- Aucun --</option>
-                    </select>
+                    <label class="menu-label">Sets Modulaires :</label>
+                    <!-- BOÎTE SCROLLABLE AVEC HAUTEUR FIXE POUR LES MODULAIRES -->
+                    <div id="modular-list" style="background: #2c3e50; padding: 10px; border-radius: 4px; border: 1px solid #7f8c8d; height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+                        <!-- Les options seront injectées ici par le Javascript -->
+                    </div>
 
                     <button id="btn-load-villain" style="width: 100%; padding: 12px; background-color: #8e44ad; margin-top: 10px;">Déployer le Scénario</button>
                 </div>
+                
+                <button id="btn-reset-game" style="background-color: #c0392b; color: white; font-size: 1em; padding: 12px; font-weight: bold; border-radius: 5px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">⚠️ Réinitialiser la Partie</button>
             </div>
         </div>
     </div>

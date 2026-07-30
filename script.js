@@ -7,6 +7,7 @@ const btnOpenMenu = document.getElementById('btn-open-menu');
 const modalMenu = document.getElementById('modal-menu');
 const modalMenuClose = document.getElementById('modal-menu-close');
 const btnAddNemesis = document.getElementById('btn-add-nemesis');
+const btnResetGame = document.getElementById('btn-reset-game');
 
 // Nouveaux éléments du Menu Principal
 const btnLoadCustomDeck = document.getElementById('btn-load-custom-deck');
@@ -15,7 +16,6 @@ const heroSelect = document.getElementById('hero-select');
 const btnLoadHero = document.getElementById('btn-load-hero');
 const villainSelect = document.getElementById('villain-select');
 const difficultySelect = document.getElementById('difficulty-select');
-const modularSelect = document.getElementById('modular-select');
 const btnLoadVillain = document.getElementById('btn-load-villain');
 
 // Piles et zones
@@ -64,6 +64,7 @@ const heroHandSizeSpan = document.getElementById('hero-hand-size');
 const phases = document.querySelectorAll('#phase-list li');
 let currentPhaseIndex = 0;
 let currentHeroId = null;
+let resetInProgress = false; // Sécurité pour empêcher la sauvegarde lors d'un reset
 
 const CARD_BACKS = { player: 'assets/player_back.jpg', encounter: 'assets/encounter_back.jpg' };
 const CARD_BACKS_FALLBACK = {
@@ -86,14 +87,19 @@ updateCamera();
 btnOpenMenu.addEventListener('click', () => modalMenu.classList.remove('hidden'));
 modalMenuClose.addEventListener('click', () => modalMenu.classList.add('hidden'));
 
+btnResetGame.addEventListener('click', () => {
+    if(confirm("Êtes-vous sûr de vouloir tout effacer et recommencer la partie ?")) {
+        resetInProgress = true; // Empêche l'event 'beforeunload' de recréer la sauvegarde
+        localStorage.removeItem('marvelVTT_save');
+        location.reload();
+    }
+});
+
 // ==========================================
-// 1. INITIALISATION DES MENUS VIA LA BASE DE DONNÉES (gamedata.js)
+// 1. INITIALISATION DES MENUS VIA LA BASE DE DONNÉES
 // ==========================================
 function initMenus() {
-    if (typeof MARVEL_DB === 'undefined') {
-        alert("Erreur: Le fichier gamedata.js n'a pas été trouvé ou chargé.");
-        return;
-    }
+    if (typeof MARVEL_DB === 'undefined') return;
 
     heroSelect.innerHTML = '<option value="">-- Sélectionner un Héros --</option>';
     MARVEL_DB.heroes.forEach(h => heroSelect.innerHTML += `<option value="${h.id}">${h.name}</option>`);
@@ -101,12 +107,27 @@ function initMenus() {
     villainSelect.innerHTML = '<option value="">-- Sélectionner un Scénario --</option>';
     MARVEL_DB.villains.forEach(v => villainSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`);
 
-    MARVEL_DB.modulars.forEach(m => modularSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`);
+    // Génération de la liste des sets modulaires avec cases à cocher
+    const modularList = document.getElementById('modular-list');
+    if (modularList) {
+        let html = `<label style="cursor: pointer; color: #f1c40f; display: flex; align-items: center; gap: 5px;">
+            <input type="checkbox" id="mod-default-checkbox" checked> 
+            <b>Par défaut (défini par le Méchant)</b>
+        </label>
+        <div style="height: 1px; background: #7f8c8d; margin: 5px 0;"></div>`;
+        
+        MARVEL_DB.modulars.forEach(m => {
+            html += `<label style="cursor: pointer; display: flex; align-items: center; gap: 5px; color: #ecf0f1;">
+                <input type="checkbox" class="mod-checkbox" value="${m.id}"> 
+                ${m.name}
+            </label>`;
+        });
+        modularList.innerHTML = html;
+    }
 }
-initMenus();
 
 // ==========================================
-// 2. FONCTION DE TÉLÉCHARGEMENT DE CARTE
+// 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE
 // ==========================================
 async function fetchAPI(cardCode) {
     try {
@@ -140,49 +161,20 @@ function getImageUrl(cardData) {
     return `https://marvelcdb.com/bundles/cards/${code}.png`;
 }
 
-// CORRECTION : Retour du paramètre preferredFrontType pour forcer l'Alter-Ego
-async function fetchCardDoubleSided(baseCode, preferredFrontType = null) {
-    let core = baseCode.replace(/[ab]$/, '');
-    let codeA = core + 'a';
-    let codeB = core + 'b';
-    
-    let dataA = await fetchAPI(codeA);
-    if (!dataA) dataA = await fetchAPI(core);
-    let dataB = await fetchAPI(codeB);
-
-    if (!dataA && !dataB) {
-        let data = await fetchAPI(core);
-        return { front: data, back: null };
-    }
-
-    let front = dataA || dataB;
-    let back = dataB || dataA;
-
-    if (preferredFrontType && dataA && dataB) {
-        if (dataB.type_code === preferredFrontType && dataA.type_code !== preferredFrontType) {
-            front = dataB;
-            back = dataA;
-        }
-    }
-    
-    return { front: front, back: back };
-}
-
 // ==========================================
 // 3. GÉNÉRATION DES PARTIES
 // ==========================================
 
-// --- DEPLOYER LE HÉROS DE LA BASE DE DONNÉES ---
 btnLoadHero.addEventListener('click', async () => {
     const hId = heroSelect.value;
     if (!hId) return;
-    
     const heroDef = MARVEL_DB.heroes.find(h => h.id === hId);
     if (!heroDef) return;
 
     modalMenu.classList.add('hidden');
     myDeck = [...heroDef.deck];
     await setupHero(heroDef.hero_code, heroDef.id);
+    saveGameState();
 });
 
 btnLoadCustomDeck.addEventListener('click', async () => {
@@ -218,11 +210,19 @@ btnLoadCustomDeck.addEventListener('click', async () => {
         }
 
         const heroCode = deckData.hero_code || deckData.investigator_code;
-        await setupHero(heroCode, null);
+        
+        let dbHeroId = null;
+        if (typeof MARVEL_DB !== 'undefined') {
+            const match = MARVEL_DB.heroes.find(h => h.hero_code.replace(/[ab]$/,'') === heroCode.replace(/[ab]$/,''));
+            if (match) dbHeroId = match.id;
+        }
+
+        await setupHero(heroCode, dbHeroId);
         
         btnLoadCustomDeck.disabled = false;
         btnLoadCustomDeck.innerText = "Charger via URL";
         modalMenu.classList.add('hidden');
+        saveGameState();
 
     } catch (error) {
         alert("Erreur lors du chargement.");
@@ -231,14 +231,20 @@ btnLoadCustomDeck.addEventListener('click', async () => {
     }
 });
 
-// INITIALISATION DU HÉROS (CORRIGÉ POUR L'ALTER-EGO)
 async function setupHero(heroBaseCode, dbHeroId) {
-    const cards = await fetchCardDoubleSided(heroBaseCode, 'alter_ego');
-    if (!cards.front) return;
+    let coreCode = heroBaseCode.replace(/[ab]$/, '');
+    
+    // On télécharge les deux faces du héros via l'API
+    let frontData = await fetchAPI(coreCode + 'a') || await fetchAPI(coreCode);
+    let backData = await fetchAPI(coreCode + 'b');
+    
+    // INVERSION MANUELLE DEMANDÉE : La face B devient la face A
+    let startFace = backData || frontData; // Face de départ inversée
+    let altFace = frontData;               // Face de secours
     
     currentHeroId = dbHeroId; 
-    const coreCode = cards.front.code.replace(/[ab]$/, '');
 
+    // Nettoyage de l'identité dans le deck
     const indicesToRemove = [coreCode, coreCode + 'a', coreCode + 'b'];
     indicesToRemove.forEach(code => {
         let index;
@@ -247,26 +253,30 @@ async function setupHero(heroBaseCode, dbHeroId) {
         }
     });
     
-    let backUrl = cards.back ? getImageUrl(cards.back) : null;
-    let heroDOM = buildCardDOM(cards.front, backUrl);
+    // Construction de la carte avec l'inversion
+    let heroDOM = buildCardDOM(startFace, altFace ? getImageUrl(altFace) : null);
     
-    heroDOM.dataset.cardDataA = JSON.stringify(cards.front);
-    if (cards.back) heroDOM.dataset.cardDataB = JSON.stringify(cards.back);
+    heroDOM.dataset.cardDataA = JSON.stringify(startFace);
+    if (altFace) heroDOM.dataset.cardDataB = JSON.stringify(altFace);
     
     heroDOM.id = 'hero-card-element';
-    heroDOM.dataset.handSizeA = cards.front.hand_size || 6;
-    heroDOM.dataset.handSizeB = cards.back ? (cards.back.hand_size || 5) : 5;
+    heroDOM.dataset.handSizeA = startFace.hand_size || 5;
+    heroDOM.dataset.handSizeB = altFace ? (altFace.hand_size || 6) : 6;
     
     const rect = boardWrapper.getBoundingClientRect();
     const spawnX = (rect.width / 2 - boardX) / scale;
     const spawnY = (rect.height / 2 - boardY) / scale;
+    
     putOnBoardAt(heroDOM, spawnX, spawnY, false);
 
     heroTracker.classList.remove('hidden');
-    heroHpInput.value = cards.front.health || 10;
+    heroHpInput.value = startFace.health || 10;
     heroHandSizeSpan.innerText = heroDOM.dataset.handSizeA;
     
-    if (btnAddNemesis) btnAddNemesis.classList.remove('hidden');
+    if (currentHeroId && btnAddNemesis) {
+        btnAddNemesis.classList.remove('hidden');
+    }
+    
     btnDrawHand.classList.remove('hidden'); 
     
     shuffleArray(myDeck);
@@ -279,16 +289,9 @@ async function setupHero(heroBaseCode, dbHeroId) {
 // --- BOUTON NÉMÉSIS ---
 if (btnAddNemesis) {
     btnAddNemesis.addEventListener('click', async () => {
-        if (!currentHeroId) {
-            alert("Ce Héros n'a pas été chargé depuis la base de données locale (gamedata.js), ou n'a pas de Set Némésis défini.");
-            return;
-        }
-
+        if (!currentHeroId) return;
         const heroDef = MARVEL_DB.heroes.find(h => h.id === currentHeroId);
-        if (!heroDef || !heroDef.nemesis) {
-            alert("Aucune information Némésis trouvée pour ce héros dans la base de données.");
-            return;
-        }
+        if (!heroDef || !heroDef.nemesis) return;
 
         btnAddNemesis.innerText = "Recherche...";
         btnAddNemesis.disabled = true;
@@ -298,20 +301,15 @@ if (btnAddNemesis) {
             const spawnX = (rect.width / 2 - boardX) / scale;
             const spawnY = (rect.height / 2 - boardY) / scale;
 
-            if (heroDef.nemesis.obligation) {
-                encounterDeck.push(heroDef.nemesis.obligation);
-            }
+            if (heroDef.nemesis.obligation) encounterDeck.push(heroDef.nemesis.obligation);
 
-            let minionDeployed = false;
-            let schemeDeployed = false;
+            let minionDeployed = false, schemeDeployed = false;
 
             for (let code of heroDef.nemesis.set) {
                 const cardData = await fetchAPI(code);
                 if (!cardData) continue;
 
-                if ((cardData.type_code === 'side_scheme' && !schemeDeployed) || 
-                    (cardData.type_code === 'minion' && !minionDeployed)) {
-                    
+                if ((cardData.type_code === 'side_scheme' && !schemeDeployed) || (cardData.type_code === 'minion' && !minionDeployed)) {
                     if (cardData.type_code === 'side_scheme') schemeDeployed = true;
                     if (cardData.type_code === 'minion') minionDeployed = true;
 
@@ -325,10 +323,9 @@ if (btnAddNemesis) {
             shuffleArray(encounterDeck);
             updateDeckCounters();
             encounterDeckElement.classList.remove('hidden'); 
-            
             btnAddNemesis.classList.add('hidden'); 
             alert(`🚨 L'Obligation a été mélangée et le Set Némésis a été déployé !`);
-
+            saveGameState();
         } catch (e) {
             alert("Erreur lors de l'ajout du Némésis.");
         } finally {
@@ -342,13 +339,11 @@ if (btnAddNemesis) {
 btnLoadVillain.addEventListener('click', async () => {
     const vId = villainSelect.value;
     const diff = difficultySelect.value;
-    const mId = modularSelect.value;
 
     if (!vId) return;
     modalMenu.classList.add('hidden');
     
     const villainDef = MARVEL_DB.villains.find(v => v.id === vId);
-    
     const rect = boardWrapper.getBoundingClientRect();
     const spawnX = (rect.width / 2 - boardX) / scale;
     const spawnY = (rect.height / 2 - boardY) / scale;
@@ -361,33 +356,47 @@ btnLoadVillain.addEventListener('click', async () => {
         }
     }
 
+    // CORRECTION API MANIGANCE : code brut pour face 1, code+'b' pour face 2
     for (let i = 0; i < villainDef.schemes.length; i++) {
-        let scheme = await fetchCardDoubleSided(villainDef.schemes[i], 'main_scheme');
-        if (scheme.front) {
-            let sDom = buildCardDOM(scheme.front, scheme.back ? getImageUrl(scheme.back) : null);
-            sDom.dataset.cardDataA = JSON.stringify(scheme.front);
-            if (scheme.back) sDom.dataset.cardDataB = JSON.stringify(scheme.back);
-            sDom.id = i === 0 ? 'main-scheme-element' : '';
-            putOnBoardAt(sDom, (spawnX - 250) + (i * 20), spawnY - 150 + (i * 20), false);
+        let baseCode = villainDef.schemes[i].replace(/[ab]$/, '');
+        
+        let frontData = await fetchAPI(baseCode); 
+        let backData = await fetchAPI(baseCode + 'b'); 
+        
+        if (frontData) {
+            let sDom = buildCardDOM(frontData, backData ? getImageUrl(backData) : null);
+            sDom.dataset.cardDataA = JSON.stringify(frontData);
+            if (backData) sDom.dataset.cardDataB = JSON.stringify(backData);
+            sDom.id = `main-scheme-element-${i}`;
+            let offset = i * 40;
+            putOnBoardAt(sDom, (spawnX - 250) + offset, spawnY - 150 + offset, false);
         }
     }
 
     encounterDeck = [...villainDef.base_deck];
     
-    if (diff === 'standard' || diff === 'expert') {
-        encounterDeck.push(...MARVEL_DB.difficulty.standard);
+    if (diff === 'standard' || diff === 'expert') encounterDeck.push(...MARVEL_DB.difficulty.standard);
+    if (diff === 'expert') encounterDeck.push(...MARVEL_DB.difficulty.expert);
+    
+    // LOGIQUE DE SÉLECTION MULTIPLE DES SETS MODULAIRES
+    const useDefaultMod = document.getElementById('mod-default-checkbox').checked;
+    const selectedMods = Array.from(document.querySelectorAll('.mod-checkbox:checked')).map(cb => cb.value);
+    
+    let modularsToLoad = new Set(selectedMods);
+    
+    if (useDefaultMod && villainDef.default_modulars) {
+        villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
     }
-    if (diff === 'expert') {
-        encounterDeck.push(...MARVEL_DB.difficulty.expert);
-    }
-    if (mId !== 'none') {
+
+    modularsToLoad.forEach(mId => {
         let modDef = MARVEL_DB.modulars.find(m => m.id === mId);
-        encounterDeck.push(...modDef.cards);
-    }
+        if (modDef) encounterDeck.push(...modDef.cards);
+    });
 
     shuffleArray(encounterDeck);
     encounterDeckElement.classList.remove('hidden');
     updateDeckCounters();
+    saveGameState();
 });
 
 // ==========================================
@@ -404,9 +413,10 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
         await drawToHandSize();
     }
     if (currentPhaseIndex === 2) {
-        let mainScheme = document.getElementById('main-scheme-element');
+        let mainScheme = document.getElementById('main-scheme-element-0'); // Ajouter menace sur la première
         if (mainScheme) updateToken(mainScheme, 'threat', 1);
     }
+    saveGameState();
 });
 
 btnDrawHand.addEventListener('click', drawToHandSize);
@@ -426,17 +436,16 @@ async function drawToHandSize() {
                     shuffleArray(myDeck);
                     updateDeckCounters();
                     alert("⚠️ Pioche vide ! La défausse a été mélangée. N'oublie pas de te donner une carte rencontre face cachée.");
-                } else {
-                    break;
-                }
+                } else { break; }
             }
             await drawCard('player');
         }
     }
+    saveGameState();
 }
 
-deckElement.addEventListener('click', () => drawCard('player'));
-encounterDeckElement.addEventListener('click', () => drawCard('encounter'));
+deckElement.addEventListener('click', () => { drawCard('player'); saveGameState(); });
+encounterDeckElement.addEventListener('click', () => { drawCard('encounter'); saveGameState(); });
 
 async function drawCard(type) {
     const pile = type === 'player' ? myDeck : encounterDeck;
@@ -449,7 +458,6 @@ async function drawCard(type) {
 
     const cardDOM = buildCardDOM(data);
     
-    // CORRECTION : Les cartes rencontres se posent désormais FACE CACHÉE sur le plateau
     if (type === 'player') {
         putInHand(cardDOM);
     } else {
@@ -473,9 +481,7 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     const card = document.createElement('div');
     card.classList.add('card');
 
-    if (cardData.type_code === 'main_scheme' || cardData.type_code === 'side_scheme') {
-        card.classList.add('landscape');
-    }
+    if (cardData.type_code === 'main_scheme' || cardData.type_code === 'side_scheme') card.classList.add('landscape');
 
     const isEncounter = cardData.faction_code === 'encounter' || cardData.type_code === 'minion' || cardData.type_code === 'side_scheme' || cardData.type_code === 'obligation' || cardData.type_code === 'villain';
     let defaultBack = isEncounter ? CARD_BACKS.encounter : CARD_BACKS.player;
@@ -506,7 +512,16 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     return card;
 }
 
-// CORRECTION : Modification de la fonction pour permettre la pose face cachée
+function syncTokenVisuals(card) {
+    const dmg = parseInt(card.dataset.damage) || 0;
+    const thrt = parseInt(card.dataset.threat) || 0;
+    const dmgTok = card.querySelector('.damage-token');
+    const thrtTok = card.querySelector('.threat-token');
+    dmgTok.innerText = dmg; thrtTok.innerText = thrt;
+    dmgTok.classList.toggle('hidden', dmg <= 0);
+    thrtTok.classList.toggle('hidden', thrt <= 0);
+}
+
 function putOnBoardAt(cardElement, x, y, faceDown = false) {
     cardElement.classList.remove('in-hand'); 
     cardElement.style.zIndex = topZIndex++;
@@ -520,7 +535,6 @@ function putOnBoardAt(cardElement, x, y, faceDown = false) {
         cardElement.dataset.flipped = "false";
         cardElement.querySelector('.card-front').src = cardElement.dataset.frontUrl;
     }
-    
     board.appendChild(cardElement);
 }
 
@@ -528,7 +542,7 @@ function putInHand(cardElement) {
     cardElement.classList.add('in-hand'); cardElement.style.left = ""; cardElement.style.top = "";
     cardElement.classList.remove('exhausted');
     cardElement.dataset.damage = 0; cardElement.dataset.threat = 0;
-    cardElement.querySelector('.damage-token').classList.add('hidden'); cardElement.querySelector('.threat-token').classList.add('hidden');
+    syncTokenVisuals(cardElement);
     
     if (cardElement.dataset.flipped === 'true') {
         cardElement.dataset.flipped = "false"; 
@@ -555,23 +569,16 @@ function setupCardInteractions(card) {
         e.preventDefault(); e.stopPropagation();
         hideAllMenus();
         targetCard = card;
-        
         contextMenu.classList.remove('hidden');
-        
-        let x = e.clientX;
-        let y = e.clientY;
-        
+        let x = e.clientX, y = e.clientY;
         if (x + contextMenu.offsetWidth > window.innerWidth) x = window.innerWidth - contextMenu.offsetWidth - 5;
         if (y + contextMenu.offsetHeight > window.innerHeight) y = window.innerHeight - contextMenu.offsetHeight - 5;
-        
-        contextMenu.style.left = x + 'px';
-        contextMenu.style.top = y + 'px';
+        contextMenu.style.left = x + 'px'; contextMenu.style.top = y + 'px';
     });
 }
 
 function makeDraggable(element) {
     let isDragging = false, startX, startY;
-
     element.onmousedown = (e) => {
         if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel')) return;
         if (e.button === 2) return;
@@ -583,9 +590,7 @@ function makeDraggable(element) {
 
     element.addEventListener('touchstart', (e) => {
         if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel')) return;
-        isDragging = false; 
-        startX = e.touches[0].clientX; 
-        startY = e.touches[0].clientY;
+        isDragging = false; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
     }, {passive: true});
 
     function elementDrag(e) {
@@ -594,22 +599,18 @@ function makeDraggable(element) {
         let clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
         if (!isDragging && (Math.abs(clientX - startX) > 3 || Math.abs(clientY - startY) > 3)) {
-            isDragging = true;
-            element.classList.remove('in-hand');
-            element.style.zIndex = topZIndex++;
+            isDragging = true; element.classList.remove('in-hand'); element.style.zIndex = topZIndex++;
         }
 
         if (isDragging) {
             const isOverHUD = clientY > window.innerHeight - 140; 
             const isLandscape = element.classList.contains('landscape');
-
             if (isOverHUD) {
                 if (element.parentNode !== document.body) {
                     document.body.appendChild(element);
                     element.classList.add('is-dragging-hud'); element.classList.remove('is-dragging-board');
                 }
-                const offsetW = isLandscape ? 60 : 42; 
-                const offsetH = isLandscape ? 42 : 60;
+                const offsetW = isLandscape ? 60 : 42; const offsetH = isLandscape ? 42 : 60;
                 element.style.left = (clientX - offsetW) + "px"; element.style.top = (clientY - offsetH) + "px";
             } else {
                 if (element.parentNode !== board) {
@@ -617,8 +618,7 @@ function makeDraggable(element) {
                     element.classList.add('is-dragging-board'); element.classList.remove('is-dragging-hud');
                 }
                 const rect = boardWrapper.getBoundingClientRect();
-                const offsetW = isLandscape ? 84 : 60;
-                const offsetH = isLandscape ? 60 : 84;
+                const offsetW = isLandscape ? 84 : 60; const offsetH = isLandscape ? 60 : 84;
                 const trueX = (clientX - rect.left - boardX) / scale - offsetW;
                 const trueY = (clientY - rect.top - boardY) / scale - offsetH;
                 element.style.left = trueX + "px"; element.style.top = trueY + "px";
@@ -635,24 +635,19 @@ function makeDraggable(element) {
             element.style.visibility = 'hidden';
             const dropTarget = document.elementFromPoint(clientX, clientY);
             element.style.visibility = '';
-
             element.classList.remove('is-dragging-hud', 'is-dragging-board');
             
             if (dropTarget && dropTarget.closest('#discard-pile')) discardCard(element, 'player');
             else if (dropTarget && dropTarget.closest('#encounter-discard-pile')) discardCard(element, 'encounter');
             else if (dropTarget && dropTarget.closest('#hand-area')) putInHand(element);
             else if (element.parentNode !== board) putOnBoardAt(element, (clientX - boardX) / scale, (clientY - boardY) / scale, element.dataset.flipped === 'true');
+            saveGameState();
         } else {
             const isFlipped = element.dataset.flipped === 'true';
             const currentImg = isFlipped ? element.dataset.backUrl : element.dataset.frontUrl;
-            
             let dataToDisplay = element.dataset.cardData;
-            if (isFlipped && element.dataset.cardDataB) {
-                dataToDisplay = element.dataset.cardDataB;
-            } else if (!isFlipped && element.dataset.cardDataA) {
-                dataToDisplay = element.dataset.cardDataA;
-            }
-
+            if (isFlipped && element.dataset.cardDataB) dataToDisplay = element.dataset.cardDataB;
+            else if (!isFlipped && element.dataset.cardDataA) dataToDisplay = element.dataset.cardDataA;
             updateSidePanel(dataToDisplay, currentImg);
         }
     }
@@ -663,13 +658,11 @@ document.addEventListener('click', (e) => {
     if (!e.target.closest('#context-menu') && !e.target.closest('#pile-context-menu')) hideAllMenus();
 });
 
-function hideAllMenus() {
-    contextMenu.classList.add('hidden'); pileContextMenu.classList.add('hidden');
-}
+function hideAllMenus() { contextMenu.classList.add('hidden'); pileContextMenu.classList.add('hidden'); }
 
 document.getElementById('menu-exhaust').addEventListener('click', () => {
     if (targetCard && !targetCard.classList.contains('in-hand')) targetCard.classList.toggle('exhausted');
-    hideAllMenus();
+    hideAllMenus(); saveGameState();
 });
 
 document.getElementById('menu-flip').addEventListener('click', () => {
@@ -682,31 +675,20 @@ document.getElementById('menu-flip').addEventListener('click', () => {
         targetCard.querySelector('.card-front').src = newSrc;
         
         let dataToDisplay = targetCard.dataset.cardData;
-        if (willBeFlipped && targetCard.dataset.cardDataB) {
-            dataToDisplay = targetCard.dataset.cardDataB;
-        } else if (!willBeFlipped && targetCard.dataset.cardDataA) {
-            dataToDisplay = targetCard.dataset.cardDataA;
-        }
-
+        if (willBeFlipped && targetCard.dataset.cardDataB) dataToDisplay = targetCard.dataset.cardDataB;
+        else if (!willBeFlipped && targetCard.dataset.cardDataA) dataToDisplay = targetCard.dataset.cardDataA;
         updateSidePanel(dataToDisplay, newSrc);
 
-        if (targetCard.id === 'hero-card-element') {
-            heroHandSizeSpan.innerText = willBeFlipped ? targetCard.dataset.handSizeB : targetCard.dataset.handSizeA;
-        }
+        if (targetCard.id === 'hero-card-element') heroHandSizeSpan.innerText = willBeFlipped ? targetCard.dataset.handSizeB : targetCard.dataset.handSizeA;
     }
-    hideAllMenus();
+    hideAllMenus(); saveGameState();
 });
 
-document.getElementById('menu-dmg-plus').addEventListener('click', () => { if (targetCard) updateToken(targetCard, 'damage', 1); hideAllMenus(); });
-document.getElementById('menu-dmg-minus').addEventListener('click', () => { if (targetCard) updateToken(targetCard, 'damage', -1); hideAllMenus(); });
-document.getElementById('menu-thrt-plus').addEventListener('click', () => { if (targetCard) updateToken(targetCard, 'threat', 1); hideAllMenus(); });
-document.getElementById('menu-thrt-minus').addEventListener('click', () => { if (targetCard) updateToken(targetCard, 'threat', -1); hideAllMenus(); });
-
-document.getElementById('menu-discard').addEventListener('click', () => {
-    if (targetCard) discardCard(targetCard);
-    hideAllMenus();
-});
-
+document.getElementById('menu-dmg-plus').addEventListener('click', () => { if (targetCard) { updateToken(targetCard, 'damage', 1); saveGameState(); } hideAllMenus(); });
+document.getElementById('menu-dmg-minus').addEventListener('click', () => { if (targetCard) { updateToken(targetCard, 'damage', -1); saveGameState(); } hideAllMenus(); });
+document.getElementById('menu-thrt-plus').addEventListener('click', () => { if (targetCard) { updateToken(targetCard, 'threat', 1); saveGameState(); } hideAllMenus(); });
+document.getElementById('menu-thrt-minus').addEventListener('click', () => { if (targetCard) { updateToken(targetCard, 'threat', -1); saveGameState(); } hideAllMenus(); });
+document.getElementById('menu-discard').addEventListener('click', () => { if (targetCard) discardCard(targetCard); hideAllMenus(); saveGameState(); });
 document.getElementById('menu-return-top').addEventListener('click', () => returnCardToDeck('top'));
 document.getElementById('menu-return-bottom').addEventListener('click', () => returnCardToDeck('bottom'));
 document.getElementById('menu-return-shuffle').addEventListener('click', () => returnCardToDeck('shuffle'));
@@ -720,73 +702,46 @@ function returnCardToDeck(position) {
     if (position === 'top') pile.push(code);
     else if (position === 'bottom') pile.unshift(code);
     else if (position === 'shuffle') { pile.push(code); shuffleArray(pile); }
-    updateDeckCounters(); hideAllMenus();
+    updateDeckCounters(); hideAllMenus(); saveGameState();
 }
 
 function updateToken(card, type, amount) {
     if (card.classList.contains('in-hand')) return;
     let val = Math.max(0, parseInt(card.dataset[type]) + amount);
     card.dataset[type] = val;
-    const tokenDisplay = card.querySelector(`.${type}-token`);
-    tokenDisplay.innerText = val;
-    tokenDisplay.classList.toggle('hidden', val === 0);
+    syncTokenVisuals(card);
 }
 
 document.querySelectorAll('.pile-element').forEach(pile => {
     pile.addEventListener('contextmenu', (e) => {
         e.preventDefault(); e.stopPropagation(); hideAllMenus();
         targetPileType = pile.dataset.pile;
-        
-        if (targetPileType === 'player-discard' || targetPileType === 'encounter-discard') {
-            menuPileShuffleIntoDeck.style.display = 'block';
-        } else {
-            menuPileShuffleIntoDeck.style.display = 'none';
-        }
-
+        menuPileShuffleIntoDeck.style.display = (targetPileType === 'player-discard' || targetPileType === 'encounter-discard') ? 'block' : 'none';
         pileContextMenu.classList.remove('hidden');
         
-        let x = e.clientX;
-        let y = e.clientY;
+        let x = e.clientX, y = e.clientY;
         if (x + pileContextMenu.offsetWidth > window.innerWidth) x = window.innerWidth - pileContextMenu.offsetWidth - 5;
         if (y + pileContextMenu.offsetHeight > window.innerHeight) y = window.innerHeight - pileContextMenu.offsetHeight - 5;
-        
-        pileContextMenu.style.left = x + 'px';
-        pileContextMenu.style.top = y + 'px';
+        pileContextMenu.style.left = x + 'px'; pileContextMenu.style.top = y + 'px';
     });
 });
 
 menuPileShuffleIntoDeck.addEventListener('click', () => {
     hideAllMenus();
-    if (targetPileType === 'player-discard') {
-        myDeck = myDeck.concat(discardPile);
-        discardPile = [];
-        shuffleArray(myDeck);
-        alert("La défausse Joueur a été mélangée dans la pioche.");
-    } else if (targetPileType === 'encounter-discard') {
-        encounterDeck = encounterDeck.concat(encounterDiscardPile);
-        encounterDiscardPile = [];
-        shuffleArray(encounterDeck);
-        alert("La défausse Rencontre a été mélangée dans la pioche.");
-    }
-    updateDeckCounters();
+    if (targetPileType === 'player-discard') { myDeck = myDeck.concat(discardPile); discardPile = []; shuffleArray(myDeck); }
+    else if (targetPileType === 'encounter-discard') { encounterDeck = encounterDeck.concat(encounterDiscardPile); encounterDiscardPile = []; shuffleArray(encounterDeck); }
+    updateDeckCounters(); saveGameState();
 });
 
 document.getElementById('menu-pile-inspect').addEventListener('click', () => { hideAllMenus(); openInspectModal(targetPileType); });
-document.getElementById('menu-pile-shuffle').addEventListener('click', () => {
-    hideAllMenus(); let pile = getPileArray(targetPileType); if (pile) shuffleArray(pile);
-});
+document.getElementById('menu-pile-shuffle').addEventListener('click', () => { hideAllMenus(); let pile = getPileArray(targetPileType); if (pile) shuffleArray(pile); saveGameState(); });
 
 function getPileArray(pileType) {
-    switch(pileType) {
-        case 'player-deck': return myDeck; case 'player-discard': return discardPile;
-        case 'encounter-deck': return encounterDeck; case 'encounter-discard': return encounterDiscardPile;
-        default: return null;
-    }
+    switch(pileType) { case 'player-deck': return myDeck; case 'player-discard': return discardPile; case 'encounter-deck': return encounterDeck; case 'encounter-discard': return encounterDiscardPile; default: return null; }
 }
 
 async function openInspectModal(pileType) {
-    const pile = getPileArray(pileType);
-    if (!pile) return;
+    const pile = getPileArray(pileType); if (!pile) return;
     modalCardsContainer.innerHTML = 'Chargement en cours...'; modalInspect.classList.remove('hidden');
     const pileNames = { 'player-deck': 'Pioche Joueur', 'player-discard': 'Défausse Joueur', 'encounter-deck': 'Pioche Rencontre', 'encounter-discard': 'Défausse Rencontre' };
     modalTitle.innerText = `${pileNames[pileType]} (${pile.length} cartes)`;
@@ -794,18 +749,14 @@ async function openInspectModal(pileType) {
     if (pile.length === 0) { modalCardsContainer.innerHTML = '<p>Cette pile est vide.</p>'; return; }
     
     for (let i = pile.length - 1; i >= 0; i--) {
-        const code = pile[i]; const cardData = await fetchAPI(code);
-        if (!cardData) continue;
+        const code = pile[i]; const cardData = await fetchAPI(code); if (!cardData) continue;
         const item = document.createElement('div'); item.classList.add('inspect-card-item');
-        
-        const imgUrl = getImageUrl(cardData);
-        
-        item.innerHTML = `<img src="${imgUrl}" alt="${cardData.name}"/><button>Piocher</button>`;
+        item.innerHTML = `<img src="${getImageUrl(cardData)}" alt="${cardData.name}"/><button>Piocher</button>`;
         item.querySelector('button').addEventListener('click', () => {
             pile.splice(i, 1); updateDeckCounters();
             const cardDOM = buildCardDOM(cardData);
             if (pileType.includes('player')) putInHand(cardDOM); else putOnBoardAt(cardDOM, CENTER_X, CENTER_Y, true);
-            modalInspect.classList.add('hidden');
+            modalInspect.classList.add('hidden'); saveGameState();
         });
         modalCardsContainer.appendChild(item);
     }
@@ -828,14 +779,10 @@ boardWrapper.addEventListener('wheel', (e) => {
 let isPanning = false, startPanX = 0, startPanY = 0, hasPanned = false;
 boardWrapper.addEventListener('mousedown', (e) => {
     if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel')) return;
-    if (e.target === boardWrapper || e.target === board) {
-        isPanning = true; hasPanned = false; startPanX = e.clientX - boardX; startPanY = e.clientY - boardY;
-    }
+    if (e.target === boardWrapper || e.target === board) { isPanning = true; hasPanned = false; startPanX = e.clientX - boardX; startPanY = e.clientY - boardY; }
 });
 window.addEventListener('mousemove', (e) => {
-    if (!isPanning) return;
-    hasPanned = true; boardX = e.clientX - startPanX; boardY = e.clientY - startPanY;
-    updateCamera();
+    if (!isPanning) return; hasPanned = true; boardX = e.clientX - startPanX; boardY = e.clientY - startPanY; updateCamera();
 });
 window.addEventListener('mouseup', () => { if (isPanning && !hasPanned) clearSidePanel(); isPanning = false; });
 
@@ -855,3 +802,122 @@ function clearSidePanel() {
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; }
 }
+
+// ==========================================
+// 5. SAUVEGARDE ET CHARGEMENT (LOCALSTORAGE)
+// ==========================================
+function saveGameState() {
+    if (resetInProgress) return; // Bloque la sauvegarde si un reset est demandé
+    
+    try {
+        const state = {
+            myDeck, discardPile, encounterDeck, encounterDiscardPile,
+            currentHeroId, boardX, boardY, scale,
+            heroHp: heroHpInput.value,
+            heroHandSize: heroHandSizeSpan.innerText,
+            cards: []
+        };
+        
+        document.querySelectorAll('.card').forEach(card => {
+            state.cards.push({
+                id: card.id,
+                dataset: Object.assign({}, card.dataset), 
+                inHand: card.classList.contains('in-hand'),
+                exhausted: card.classList.contains('exhausted'),
+                x: card.style.left,
+                y: card.style.top,
+                zIndex: card.style.zIndex
+            });
+        });
+        
+        localStorage.setItem('marvelVTT_save', JSON.stringify(state));
+    } catch (e) {
+        console.error("Erreur lors de la sauvegarde :", e);
+    }
+}
+
+// Sauvegarde automatique toutes les 3 secondes + au moment exact où la fenêtre se ferme
+setInterval(saveGameState, 3000);
+window.addEventListener('beforeunload', saveGameState);
+
+function loadGameState() {
+    const saved = localStorage.getItem('marvelVTT_save');
+    if (!saved) {
+        initMenus();
+        return;
+    }
+
+    try {
+        const state = JSON.parse(saved);
+        
+        myDeck = state.myDeck || [];
+        discardPile = state.discardPile || [];
+        encounterDeck = state.encounterDeck || [];
+        encounterDiscardPile = state.encounterDiscardPile || [];
+        currentHeroId = state.currentHeroId || null;
+        
+        boardX = state.boardX || (-CENTER_X + window.innerWidth / 2);
+        boardY = state.boardY || (-CENTER_Y + window.innerHeight / 2);
+        scale = state.scale || 1;
+        updateCamera();
+        updateDeckCounters();
+
+        if (state.heroHp) {
+            heroHpInput.value = state.heroHp;
+            heroTracker.classList.remove('hidden');
+        }
+        if (state.heroHandSize) {
+            heroHandSizeSpan.innerText = state.heroHandSize;
+        }
+
+        if (currentHeroId && btnAddNemesis) btnAddNemesis.classList.remove('hidden');
+        if (myDeck.length > 0 || discardPile.length > 0) btnDrawHand.classList.remove('hidden');
+
+        // Reconstruction du plateau
+        board.innerHTML = '';
+        handArea.innerHTML = '';
+        
+        state.cards.forEach(cardState => {
+            try {
+                // Sécurité vitale : empêcher un "cardData" manquant de faire exploser la boucle
+                if (!cardState.dataset || !cardState.dataset.cardData) return;
+                
+                const cardData = JSON.parse(cardState.dataset.cardData);
+                const dom = buildCardDOM(cardData, cardState.dataset.backUrl);
+                
+                Object.assign(dom.dataset, cardState.dataset);
+                dom.id = cardState.id || "";
+                syncTokenVisuals(dom);
+                
+                if (cardState.dataset.flipped === "true") {
+                    dom.querySelector('.card-front').src = dom.dataset.backUrl;
+                }
+
+                if (cardState.exhausted) dom.classList.add('exhausted');
+                
+                if (cardState.inHand) {
+                    putInHand(dom);
+                } else {
+                    dom.style.left = cardState.x;
+                    dom.style.top = cardState.y;
+                    dom.style.zIndex = cardState.zIndex;
+                    board.appendChild(dom);
+                }
+                
+                if (parseInt(cardState.zIndex) >= topZIndex) topZIndex = parseInt(cardState.zIndex) + 1;
+            } catch (err) {
+                console.error("Impossible de charger une carte (données corrompues) :", err);
+            }
+        });
+        
+    } catch (e) {
+        console.error("Erreur globale de chargement de la sauvegarde :", e);
+    }
+    
+    initMenus();
+}
+
+// S'exécute une fois que le document est prêt
+document.addEventListener("DOMContentLoaded", () => {
+    loadGameState();
+});

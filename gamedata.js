@@ -25,7 +25,8 @@ const MARVEL_DB = {
             id: "rhino",
             name: "Rhino (Boîte de base)",
             stages: ["01094", "01095"], 
-            schemes: ["01097"],         
+            schemes: ["01097"],
+		default_modulars: ["bomb_scare"],         
             // Uniquement les cartes de l'affinité Rhino
             base_deck: ["01098", "01099", "01099", "01100", "01100", "01101", "01101", "01101", "01102", "01103", "01104", "01104", "01105", "01105", "01106", "01107"]
         }
