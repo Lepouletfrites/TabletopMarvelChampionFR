@@ -90,6 +90,11 @@
 
     <!-- Menus Contextuels et Modales -->
     <div id="context-menu" class="hidden">
+        <!-- NOUVELLES OPTIONS DE PROGRESSION -->
+        <div class="menu-item hidden" id="menu-next-scheme" style="color: #f39c12;">⏭️ Passer à la Manigance suivante</div>
+        <div class="menu-item hidden" id="menu-next-villain" style="color: #e74c3c;">⏭️ Passer au Stade suivant (Méchant)</div>
+        <div class="menu-separator hidden" id="menu-progression-separator"></div>
+
         <div class="menu-item" id="menu-flip">Retourner (Face A / B)</div>
         <div class="menu-item" id="menu-exhaust">Incliner / Redresser</div>
         <div class="menu-separator"></div>
@@ -156,8 +161,9 @@
                     </select>
 
                     <label class="menu-label">Sets Modulaires :</label>
+                    <!-- BOÎTE SCROLLABLE AVEC HAUTEUR FIXE POUR LES MODULAIRES -->
                     <div id="modular-list" style="background: #2c3e50; padding: 10px; border-radius: 4px; border: 1px solid #7f8c8d; height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
-                        <!-- Injecté par JS -->
+                        <!-- Les options seront injectées ici par le Javascript -->
                     </div>
 
                     <button id="btn-load-villain" style="width: 100%; padding: 12px; background-color: #8e44ad; margin-top: 10px;">Déployer le Scénario</button>
@@ -171,7 +177,6 @@
         </div>
     </div>
 
-    <!-- On charge d'abord la Base de Données, PUIS le script -->
     <script src="gamedata.js"></script>
     <script src="script.js"></script>
 </body>

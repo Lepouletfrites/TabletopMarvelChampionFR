@@ -8,7 +8,7 @@ const modalMenu = document.getElementById('modal-menu');
 const modalMenuClose = document.getElementById('modal-menu-close');
 const btnAddNemesis = document.getElementById('btn-add-nemesis');
 const btnResetGame = document.getElementById('btn-reset-game');
-const btnSaveGame = document.getElementById('btn-save-game'); // NOUVEAU BOUTON SAUVEGARDE
+const btnSaveGame = document.getElementById('btn-save-game'); 
 
 // Nouveaux éléments du Menu Principal
 const btnLoadCustomDeck = document.getElementById('btn-load-custom-deck');
@@ -42,6 +42,11 @@ const modalTitle = document.getElementById('modal-title');
 const modalCardsContainer = document.getElementById('modal-cards-container');
 const modalClose = document.getElementById('modal-close');
 
+// Nouveaux Boutons Menus progression Scenario
+const menuNextScheme = document.getElementById('menu-next-scheme');
+const menuNextVillain = document.getElementById('menu-next-villain');
+const menuProgressionSeparator = document.getElementById('menu-progression-separator');
+
 // --- BOUTONS ADDITIONNELS (Main / Défausse) ---
 const btnDrawHand = document.createElement('button');
 btnDrawHand.id = 'btn-draw-hand';
@@ -65,7 +70,13 @@ const heroHandSizeSpan = document.getElementById('hero-hand-size');
 const phases = document.querySelectorAll('#phase-list li');
 let currentPhaseIndex = 0;
 let currentHeroId = null;
-let resetInProgress = false; // Sécurité pour empêcher la sauvegarde lors d'un reset
+let resetInProgress = false; 
+
+// --- GESTION DU SCÉNARIO ---
+let currentVillainStages = [];
+let currentVillainStageIndex = 0;
+let currentVillainSchemes = [];
+let currentSchemeIndex = 0;
 
 const CARD_BACKS = { player: 'assets/player_back.jpg', encounter: 'assets/encounter_back.jpg' };
 const CARD_BACKS_FALLBACK = {
@@ -347,20 +358,31 @@ btnLoadVillain.addEventListener('click', async () => {
     modalMenu.classList.add('hidden');
     
     const villainDef = MARVEL_DB.villains.find(v => v.id === vId);
+    
+    // Initialisation de la progression du scénario
+    currentVillainStages = villainDef.stages;
+    
+    // CORRECTION EXPERT : Si Expert, on commence à l'index 1 (Stade II)
+    currentVillainStageIndex = (diff === 'expert') ? 1 : 0; 
+    currentVillainSchemes = villainDef.schemes;
+    currentSchemeIndex = 0;
+
     const rect = boardWrapper.getBoundingClientRect();
     const spawnX = (rect.width / 2 - boardX) / scale;
     const spawnY = (rect.height / 2 - boardY) / scale;
 
-    for (let i = 0; i < villainDef.stages.length; i++) {
-        let vData = await fetchAPI(villainDef.stages[i]);
+    // Déploiement uniquement du STADE initial (I ou II)
+    if (currentVillainStages.length > currentVillainStageIndex) {
+        let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
         if (vData) {
             let vDom = buildCardDOM(vData);
-            putOnBoardAt(vDom, spawnX + (i * 10), spawnY - 145, false);
+            putOnBoardAt(vDom, spawnX, spawnY - 145, false);
         }
     }
 
-    for (let i = 0; i < villainDef.schemes.length; i++) {
-        let baseCode = villainDef.schemes[i].replace(/[ab]$/, '');
+    // Déploiement uniquement de la MANIGANCE PRINCIPALE 1
+    if (currentVillainSchemes.length > 0) {
+        let baseCode = currentVillainSchemes[0].replace(/[ab]$/, '');
         let frontData = await fetchAPI(baseCode); 
         let backData = await fetchAPI(baseCode + 'b'); 
         
@@ -368,9 +390,8 @@ btnLoadVillain.addEventListener('click', async () => {
             let sDom = buildCardDOM(frontData, backData ? getImageUrl(backData) : null);
             sDom.dataset.cardDataA = JSON.stringify(frontData);
             if (backData) sDom.dataset.cardDataB = JSON.stringify(backData);
-            sDom.id = `main-scheme-element-${i}`;
-            let offset = i * 40;
-            putOnBoardAt(sDom, (spawnX - 250) + offset, spawnY - 150 + offset, false);
+            sDom.id = `main-scheme-element`; // ID Unique pour le bouton phase suivante
+            putOnBoardAt(sDom, spawnX - 250, spawnY - 150, false);
         }
     }
 
@@ -413,7 +434,7 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
         await drawToHandSize();
     }
     if (currentPhaseIndex === 2) {
-        let mainScheme = document.getElementById('main-scheme-element-0'); // Ajouter menace sur la première
+        let mainScheme = document.getElementById('main-scheme-element'); 
         if (mainScheme) updateToken(mainScheme, 'threat', 1);
     }
     saveGameState();
@@ -477,13 +498,16 @@ function updateDeckCounters() {
     encounterDiscardCountText.innerText = encounterDiscardPile.length;
 }
 
-// CORRECTION ORIENTATION DYNAMIQUE
+// CORRECTION ORIENTATION POUR MANIGANCE PRINCIPALE
 function updateCardOrientation(card) {
     if (!card.dataset || !card.dataset.cardData) return;
     let data = JSON.parse(card.dataset.cardData);
-    let isFlipped = card.dataset.flipped === 'true'; // true = face cachée
+    let isFlipped = card.dataset.flipped === 'true'; 
     
-    if (!isFlipped && (data.type_code === 'main_scheme' || data.type_code === 'side_scheme')) {
+    if (data.type_code === 'main_scheme') {
+        // Toujours en paysage (recto et verso)
+        card.classList.add('landscape');
+    } else if (!isFlipped && data.type_code === 'side_scheme') {
         card.classList.add('landscape');
     } else {
         card.classList.remove('landscape');
@@ -519,7 +543,6 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     `;
 
     updateCardOrientation(card);
-
     setupCardInteractions(card);
     makeDraggable(card);
     return card;
@@ -583,12 +606,79 @@ function setupCardInteractions(card) {
         hideAllMenus();
         targetCard = card;
         contextMenu.classList.remove('hidden');
+        
+        let data = JSON.parse(card.dataset.cardData);
+        let showSeparator = false;
+        
+        menuNextScheme.classList.add('hidden');
+        menuNextVillain.classList.add('hidden');
+        menuProgressionSeparator.classList.add('hidden');
+
+        // Dynamiquement afficher les options de progression (Manigance)
+        if (data.type_code === 'main_scheme' && currentSchemeIndex + 1 < currentVillainSchemes.length) {
+            menuNextScheme.classList.remove('hidden');
+            showSeparator = true;
+        }
+        
+        // Dynamiquement afficher les options de progression (Méchant)
+        if (data.type_code === 'villain' && currentVillainStageIndex + 1 < currentVillainStages.length) {
+            menuNextVillain.classList.remove('hidden');
+            showSeparator = true;
+        }
+
+        if (showSeparator) menuProgressionSeparator.classList.remove('hidden');
+
         let x = e.clientX, y = e.clientY;
         if (x + contextMenu.offsetWidth > window.innerWidth) x = window.innerWidth - contextMenu.offsetWidth - 5;
         if (y + contextMenu.offsetHeight > window.innerHeight) y = window.innerHeight - contextMenu.offsetHeight - 5;
         contextMenu.style.left = x + 'px'; contextMenu.style.top = y + 'px';
     });
 }
+
+// Bouton de progression: Manigance Suivante
+menuNextScheme.addEventListener('click', async () => {
+    if (targetCard) {
+        let x = parseFloat(targetCard.style.left);
+        let y = parseFloat(targetCard.style.top);
+        
+        targetCard.remove(); 
+        
+        currentSchemeIndex++;
+        let baseCode = currentVillainSchemes[currentSchemeIndex].replace(/[ab]$/, '');
+        let frontData = await fetchAPI(baseCode); 
+        let backData = await fetchAPI(baseCode + 'b'); 
+        
+        if (frontData) {
+            let sDom = buildCardDOM(frontData, backData ? getImageUrl(backData) : null);
+            sDom.dataset.cardDataA = JSON.stringify(frontData);
+            if (backData) sDom.dataset.cardDataB = JSON.stringify(backData);
+            sDom.id = `main-scheme-element`;
+            putOnBoardAt(sDom, x, y, false);
+        }
+        saveGameState();
+    }
+    hideAllMenus();
+});
+
+// Bouton de progression: Méchant Suivant
+menuNextVillain.addEventListener('click', async () => {
+    if (targetCard) {
+        let x = parseFloat(targetCard.style.left);
+        let y = parseFloat(targetCard.style.top);
+        
+        targetCard.remove();
+        
+        currentVillainStageIndex++;
+        let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
+        if (vData) {
+            let vDom = buildCardDOM(vData);
+            putOnBoardAt(vDom, x, y, false);
+        }
+        saveGameState();
+    }
+    hideAllMenus();
+});
+
 
 function makeDraggable(element) {
     let isDragging = false, startX, startY;
@@ -771,7 +861,6 @@ async function openInspectModal(pileType) {
             pile.splice(i, 1); updateDeckCounters();
             const cardDOM = buildCardDOM(cardData);
             
-            // CORRECTION: Arrive Face Visible si tirée de la liste Rencontre (false)
             if (pileType.includes('player')) putInHand(cardDOM); 
             else putOnBoardAt(cardDOM, CENTER_X, CENTER_Y, false); 
             
@@ -834,13 +923,18 @@ function saveGameState() {
             currentHeroId, boardX, boardY, scale,
             heroHp: heroHpInput.value,
             heroHandSize: heroHandSizeSpan.innerText,
+            
+            // On sauvegarde l'état du scénario actuel
+            currentVillainStages, currentVillainStageIndex,
+            currentVillainSchemes, currentSchemeIndex,
+            
             cards: []
         };
         
         document.querySelectorAll('.card').forEach(card => {
             state.cards.push({
                 id: card.id,
-                dataset: { ...card.dataset }, // Clonage ultra sécurisé 
+                dataset: { ...card.dataset }, 
                 inHand: card.classList.contains('in-hand'),
                 exhausted: card.classList.contains('exhausted'),
                 x: card.style.left,
@@ -855,10 +949,9 @@ function saveGameState() {
     }
 }
 
-// Déclencheurs de sauvegarde renforcés
-setInterval(saveGameState, 3000); // Toutes les 3 secondes
-window.addEventListener('beforeunload', saveGameState); // Juste avant la fermeture
-document.addEventListener("visibilitychange", () => { // Quand on change d'onglet ou minimise
+setInterval(saveGameState, 3000); 
+window.addEventListener('beforeunload', saveGameState); 
+document.addEventListener("visibilitychange", () => { 
     if (document.visibilityState === 'hidden') saveGameState();
 });
 
@@ -878,6 +971,12 @@ function loadGameState() {
         encounterDiscardPile = state.encounterDiscardPile || [];
         currentHeroId = state.currentHeroId || null;
         
+        // Restauration de l'état du scénario
+        currentVillainStages = state.currentVillainStages || [];
+        currentVillainStageIndex = state.currentVillainStageIndex || 0;
+        currentVillainSchemes = state.currentVillainSchemes || [];
+        currentSchemeIndex = state.currentSchemeIndex || 0;
+
         boardX = state.boardX || (-CENTER_X + window.innerWidth / 2);
         boardY = state.boardY || (-CENTER_Y + window.innerHeight / 2);
         scale = state.scale || 1;
@@ -906,7 +1005,6 @@ function loadGameState() {
                 const cardData = JSON.parse(cardState.dataset.cardData);
                 const dom = buildCardDOM(cardData, cardState.dataset.backUrl);
                 
-                // Réassignation propre du dataset complet
                 for(let key in cardState.dataset) {
                     dom.dataset[key] = cardState.dataset[key];
                 }
@@ -919,7 +1017,6 @@ function loadGameState() {
 
                 if (cardState.exhausted) dom.classList.add('exhausted');
                 
-                // Forcer l'orientation finale une fois les datas chargées
                 updateCardOrientation(dom);
 
                 if (cardState.inHand) {
@@ -933,18 +1030,17 @@ function loadGameState() {
                 
                 if (parseInt(cardState.zIndex) >= topZIndex) topZIndex = parseInt(cardState.zIndex) + 1;
             } catch (err) {
-                console.error("Impossible de charger une carte (données corrompues) :", err);
+                console.error("Impossible de charger une carte :", err);
             }
         });
         
     } catch (e) {
-        console.error("Erreur globale de chargement de la sauvegarde :", e);
+        console.error("Erreur de chargement :", e);
     }
     
     initMenus();
 }
 
-// S'exécute une fois que le document est prêt
 document.addEventListener("DOMContentLoaded", () => {
     loadGameState();
 });
