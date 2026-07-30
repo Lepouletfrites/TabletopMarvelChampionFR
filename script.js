@@ -8,6 +8,7 @@ const modalMenu = document.getElementById('modal-menu');
 const modalMenuClose = document.getElementById('modal-menu-close');
 const btnAddNemesis = document.getElementById('btn-add-nemesis');
 const btnResetGame = document.getElementById('btn-reset-game');
+const btnSaveGame = document.getElementById('btn-save-game'); // NOUVEAU BOUTON SAUVEGARDE
 
 // Nouveaux éléments du Menu Principal
 const btnLoadCustomDeck = document.getElementById('btn-load-custom-deck');
@@ -87,9 +88,16 @@ updateCamera();
 btnOpenMenu.addEventListener('click', () => modalMenu.classList.remove('hidden'));
 modalMenuClose.addEventListener('click', () => modalMenu.classList.add('hidden'));
 
+if (btnSaveGame) {
+    btnSaveGame.addEventListener('click', () => {
+        saveGameState();
+        alert("💾 Partie sauvegardée avec succès !");
+    });
+}
+
 btnResetGame.addEventListener('click', () => {
     if(confirm("Êtes-vous sûr de vouloir tout effacer et recommencer la partie ?")) {
-        resetInProgress = true; // Empêche l'event 'beforeunload' de recréer la sauvegarde
+        resetInProgress = true; 
         localStorage.removeItem('marvelVTT_save');
         location.reload();
     }
@@ -107,7 +115,6 @@ function initMenus() {
     villainSelect.innerHTML = '<option value="">-- Sélectionner un Scénario --</option>';
     MARVEL_DB.villains.forEach(v => villainSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`);
 
-    // Génération de la liste des sets modulaires avec cases à cocher
     const modularList = document.getElementById('modular-list');
     if (modularList) {
         let html = `<label style="cursor: pointer; color: #f1c40f; display: flex; align-items: center; gap: 5px;">
@@ -234,17 +241,14 @@ btnLoadCustomDeck.addEventListener('click', async () => {
 async function setupHero(heroBaseCode, dbHeroId) {
     let coreCode = heroBaseCode.replace(/[ab]$/, '');
     
-    // On télécharge les deux faces du héros via l'API
     let frontData = await fetchAPI(coreCode + 'a') || await fetchAPI(coreCode);
     let backData = await fetchAPI(coreCode + 'b');
     
-    // INVERSION MANUELLE DEMANDÉE : La face B devient la face A
-    let startFace = backData || frontData; // Face de départ inversée
-    let altFace = frontData;               // Face de secours
+    let startFace = backData || frontData; // Face de départ inversée (Alter-Ego)
+    let altFace = frontData;               // Face de secours (Héros)
     
     currentHeroId = dbHeroId; 
 
-    // Nettoyage de l'identité dans le deck
     const indicesToRemove = [coreCode, coreCode + 'a', coreCode + 'b'];
     indicesToRemove.forEach(code => {
         let index;
@@ -253,7 +257,6 @@ async function setupHero(heroBaseCode, dbHeroId) {
         }
     });
     
-    // Construction de la carte avec l'inversion
     let heroDOM = buildCardDOM(startFace, altFace ? getImageUrl(altFace) : null);
     
     heroDOM.dataset.cardDataA = JSON.stringify(startFace);
@@ -356,10 +359,8 @@ btnLoadVillain.addEventListener('click', async () => {
         }
     }
 
-    // CORRECTION API MANIGANCE : code brut pour face 1, code+'b' pour face 2
     for (let i = 0; i < villainDef.schemes.length; i++) {
         let baseCode = villainDef.schemes[i].replace(/[ab]$/, '');
-        
         let frontData = await fetchAPI(baseCode); 
         let backData = await fetchAPI(baseCode + 'b'); 
         
@@ -378,7 +379,6 @@ btnLoadVillain.addEventListener('click', async () => {
     if (diff === 'standard' || diff === 'expert') encounterDeck.push(...MARVEL_DB.difficulty.standard);
     if (diff === 'expert') encounterDeck.push(...MARVEL_DB.difficulty.expert);
     
-    // LOGIQUE DE SÉLECTION MULTIPLE DES SETS MODULAIRES
     const useDefaultMod = document.getElementById('mod-default-checkbox').checked;
     const selectedMods = Array.from(document.querySelectorAll('.mod-checkbox:checked')).map(cb => cb.value);
     
@@ -477,11 +477,22 @@ function updateDeckCounters() {
     encounterDiscardCountText.innerText = encounterDiscardPile.length;
 }
 
+// CORRECTION ORIENTATION DYNAMIQUE
+function updateCardOrientation(card) {
+    if (!card.dataset || !card.dataset.cardData) return;
+    let data = JSON.parse(card.dataset.cardData);
+    let isFlipped = card.dataset.flipped === 'true'; // true = face cachée
+    
+    if (!isFlipped && (data.type_code === 'main_scheme' || data.type_code === 'side_scheme')) {
+        card.classList.add('landscape');
+    } else {
+        card.classList.remove('landscape');
+    }
+}
+
 function buildCardDOM(cardData, explicitBackUrl = null) {
     const card = document.createElement('div');
     card.classList.add('card');
-
-    if (cardData.type_code === 'main_scheme' || cardData.type_code === 'side_scheme') card.classList.add('landscape');
 
     const isEncounter = cardData.faction_code === 'encounter' || cardData.type_code === 'minion' || cardData.type_code === 'side_scheme' || cardData.type_code === 'obligation' || cardData.type_code === 'villain';
     let defaultBack = isEncounter ? CARD_BACKS.encounter : CARD_BACKS.player;
@@ -507,6 +518,8 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
         <div class="token threat-token hidden">0</div>
     `;
 
+    updateCardOrientation(card);
+
     setupCardInteractions(card);
     makeDraggable(card);
     return card;
@@ -528,13 +541,11 @@ function putOnBoardAt(cardElement, x, y, faceDown = false) {
     cardElement.style.left = x + "px"; 
     cardElement.style.top = y + "px";
     
-    if (faceDown) {
-        cardElement.dataset.flipped = "true";
-        cardElement.querySelector('.card-front').src = cardElement.dataset.backUrl;
-    } else {
-        cardElement.dataset.flipped = "false";
-        cardElement.querySelector('.card-front').src = cardElement.dataset.frontUrl;
-    }
+    cardElement.dataset.flipped = faceDown ? "true" : "false";
+    cardElement.querySelector('.card-front').src = faceDown ? cardElement.dataset.backUrl : cardElement.dataset.frontUrl;
+    
+    updateCardOrientation(cardElement);
+
     board.appendChild(cardElement);
 }
 
@@ -548,6 +559,8 @@ function putInHand(cardElement) {
         cardElement.dataset.flipped = "false"; 
         cardElement.querySelector('.card-front').src = cardElement.dataset.frontUrl;
     }
+    
+    updateCardOrientation(cardElement);
     handArea.appendChild(cardElement);
 }
 
@@ -680,6 +693,8 @@ document.getElementById('menu-flip').addEventListener('click', () => {
         updateSidePanel(dataToDisplay, newSrc);
 
         if (targetCard.id === 'hero-card-element') heroHandSizeSpan.innerText = willBeFlipped ? targetCard.dataset.handSizeB : targetCard.dataset.handSizeA;
+        
+        updateCardOrientation(targetCard);
     }
     hideAllMenus(); saveGameState();
 });
@@ -755,7 +770,11 @@ async function openInspectModal(pileType) {
         item.querySelector('button').addEventListener('click', () => {
             pile.splice(i, 1); updateDeckCounters();
             const cardDOM = buildCardDOM(cardData);
-            if (pileType.includes('player')) putInHand(cardDOM); else putOnBoardAt(cardDOM, CENTER_X, CENTER_Y, true);
+            
+            // CORRECTION: Arrive Face Visible si tirée de la liste Rencontre (false)
+            if (pileType.includes('player')) putInHand(cardDOM); 
+            else putOnBoardAt(cardDOM, CENTER_X, CENTER_Y, false); 
+            
             modalInspect.classList.add('hidden'); saveGameState();
         });
         modalCardsContainer.appendChild(item);
@@ -807,7 +826,7 @@ function shuffleArray(array) {
 // 5. SAUVEGARDE ET CHARGEMENT (LOCALSTORAGE)
 // ==========================================
 function saveGameState() {
-    if (resetInProgress) return; // Bloque la sauvegarde si un reset est demandé
+    if (resetInProgress) return; 
     
     try {
         const state = {
@@ -821,7 +840,7 @@ function saveGameState() {
         document.querySelectorAll('.card').forEach(card => {
             state.cards.push({
                 id: card.id,
-                dataset: Object.assign({}, card.dataset), 
+                dataset: { ...card.dataset }, // Clonage ultra sécurisé 
                 inHand: card.classList.contains('in-hand'),
                 exhausted: card.classList.contains('exhausted'),
                 x: card.style.left,
@@ -836,9 +855,12 @@ function saveGameState() {
     }
 }
 
-// Sauvegarde automatique toutes les 3 secondes + au moment exact où la fenêtre se ferme
-setInterval(saveGameState, 3000);
-window.addEventListener('beforeunload', saveGameState);
+// Déclencheurs de sauvegarde renforcés
+setInterval(saveGameState, 3000); // Toutes les 3 secondes
+window.addEventListener('beforeunload', saveGameState); // Juste avant la fermeture
+document.addEventListener("visibilitychange", () => { // Quand on change d'onglet ou minimise
+    if (document.visibilityState === 'hidden') saveGameState();
+});
 
 function loadGameState() {
     const saved = localStorage.getItem('marvelVTT_save');
@@ -879,13 +901,15 @@ function loadGameState() {
         
         state.cards.forEach(cardState => {
             try {
-                // Sécurité vitale : empêcher un "cardData" manquant de faire exploser la boucle
                 if (!cardState.dataset || !cardState.dataset.cardData) return;
                 
                 const cardData = JSON.parse(cardState.dataset.cardData);
                 const dom = buildCardDOM(cardData, cardState.dataset.backUrl);
                 
-                Object.assign(dom.dataset, cardState.dataset);
+                // Réassignation propre du dataset complet
+                for(let key in cardState.dataset) {
+                    dom.dataset[key] = cardState.dataset[key];
+                }
                 dom.id = cardState.id || "";
                 syncTokenVisuals(dom);
                 
@@ -895,6 +919,9 @@ function loadGameState() {
 
                 if (cardState.exhausted) dom.classList.add('exhausted');
                 
+                // Forcer l'orientation finale une fois les datas chargées
+                updateCardOrientation(dom);
+
                 if (cardState.inHand) {
                     putInHand(dom);
                 } else {
