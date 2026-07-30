@@ -20,19 +20,13 @@
             <p id="zoom-desc">Sélectionne une carte pour la lire.</p>
         </div>
     </div>
-    <!-- Overlay assombri derrière le tiroir d'inspection en mode mobile -->
     <div id="side-panel-overlay"></div>
 
     <!-- Zone principale -->
     <div id="main-area">
-        <!-- Barre de Menu Haute -->
         <div id="ui-panel">
             <button id="btn-open-menu" style="background-color: #f39c12; color: #2c3e50; font-size: 1.1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">☰ Menu Principal</button>
-
-            <!-- Bouton d'ouverture du panneau d'inspection (tiroir), visible seulement en mobile/tablette -->
             <button id="btn-toggle-side" style="color: white; font-size: 1em; padding: 10px 12px;">🔍 Carte</button>
-            
-            <!-- BOUTON NEMESIS (Caché par défaut, activé par le JS) -->
             <button id="btn-add-nemesis" class="hidden" style="background-color: #8e44ad; color: white; font-size: 1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-radius: 5px; cursor: pointer; border: none; font-weight: bold; margin-left: 15px;">😈 Ajouter Némésis</button>
 
             <!-- Traqueur de Héros -->
@@ -48,11 +42,9 @@
             </div>
         </div>
 
-        <!-- Espace de jeu -->
         <div id="board-wrapper">
             <div id="game-board"></div>
             
-            <!-- Panneau des phases -->
             <div id="phase-panel">
                 <h3>PHASES DE JEU</h3>
                 <ul id="phase-list">
@@ -74,9 +66,7 @@
                     PIOCHE <br><span id="deck-count">0</span>
                 </div>
             </div>
-            
             <div id="hand-area"></div>
-            
             <div class="deck-area">
                 <div id="discard-pile" class="pile-element" data-pile="player-discard">
                     DÉFAUSSE <br><span id="discard-count">0</span>
@@ -90,7 +80,6 @@
                     RENCONTRE <br><span id="encounter-deck-count">0</span>
                 </div>
             </div>
-            
             <div class="deck-area">
                 <div id="encounter-discard-pile" class="pile-element" data-pile="encounter-discard">
                     DÉFAUSSE <br>MÉCHANT <br><span id="encounter-discard-count">0</span>
@@ -134,7 +123,7 @@
 
     <!-- MODALE DU MENU PRINCIPAL -->
     <div id="modal-menu" class="modal hidden">
-        <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3>Menu Principal</h3>
                 <button id="modal-menu-close">&times;</button>
@@ -142,24 +131,43 @@
             <div style="display: flex; flex-direction: column; gap: 20px;">
                 
                 <div style="background: #1a252f; padding: 15px; border-radius: 8px;">
-                    <h4 style="margin: 0 0 10px 0; color: #3498db;">Charger un Deck Joueur (MarvelCDB)</h4>
-                    <input type="text" id="deck-url-input" placeholder="Ex: https://marvelcdb.com/decklist/view/63906/..." style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #7f8c8d; background: #2c3e50; color: white; margin-bottom: 10px;">
+                    <h4 style="margin: 0 0 10px 0; color: #3498db;">Charger un Deck personnalisé</h4>
+                    <input type="text" id="deck-url-input" placeholder="Ex: URL MarvelCDB ou ID (ex: 63906)" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #7f8c8d; background: #2c3e50; color: white; margin-bottom: 10px;">
                     <button id="btn-load-custom-deck" style="width: 100%; background-color: #27ae60; padding: 12px; font-size: 1em;">Charger via URL</button>
                 </div>
 
                 <div style="background: #1a252f; padding: 15px; border-radius: 8px;">
-                    <h4 style="margin: 0 0 10px 0; color: #f1c40f;">Decks Préconstruits</h4>
-                    <button id="btn-load-deck" style="width: 100%; padding: 12px;">Spider-Man (Base)</button>
+                    <h4 style="margin: 0 0 10px 0; color: #f1c40f;">Héros (Decks Préconstruits)</h4>
+                    <select id="hero-select" class="menu-select"></select>
+                    <button id="btn-load-hero" style="width: 100%; padding: 12px;">Générer le deck Héros</button>
                 </div>
 
                 <div style="background: #1a252f; padding: 15px; border-radius: 8px;">
-                    <h4 style="margin: 0 0 10px 0; color: #e74c3c;">Mise en place du Méchant</h4>
-                    <button id="btn-load-rhino" style="width: 100%; padding: 12px; background-color: #8e44ad;">Charger Rhino</button>
+                    <h4 style="margin: 0 0 10px 0; color: #e74c3c;">Mise en place du Scénario</h4>
+                    
+                    <label class="menu-label">Méchant :</label>
+                    <select id="villain-select" class="menu-select"></select>
+                    
+                    <label class="menu-label">Set de Difficulté :</label>
+                    <select id="difficulty-select" class="menu-select">
+                        <option value="standard">Standard I</option>
+                        <option value="expert">Expert I (Standard I + Expert I)</option>
+                        <option value="none">Aucun (Non recommandé)</option>
+                    </select>
+
+                    <label class="menu-label">Set Modulaire :</label>
+                    <select id="modular-select" class="menu-select">
+                        <option value="none">-- Aucun --</option>
+                    </select>
+
+                    <button id="btn-load-villain" style="width: 100%; padding: 12px; background-color: #8e44ad; margin-top: 10px;">Déployer le Scénario</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- On charge d'abord la Base de Données, PUIS le script -->
+    <script src="gamedata.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
