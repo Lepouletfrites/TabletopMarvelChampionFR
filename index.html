@@ -10,6 +10,7 @@
     
     <!-- Panneau d'inspection latéral gauche -->
     <div id="side-panel">
+        <button id="btn-close-side" style="align-self: flex-end; background: #34495e; padding: 4px 10px; margin-bottom: 8px;">✕ Fermer</button>
         <div id="zoom-container">
             <img id="zoom-img" src="https://placehold.co/300x420/2c3e50/FFF?text=Clique+sur+une+carte" alt="Zoom">
         </div>
@@ -19,12 +20,17 @@
             <p id="zoom-desc">Sélectionne une carte pour la lire.</p>
         </div>
     </div>
+    <!-- Overlay assombri derrière le tiroir d'inspection en mode mobile -->
+    <div id="side-panel-overlay"></div>
 
     <!-- Zone principale -->
     <div id="main-area">
         <!-- Barre de Menu Haute -->
         <div id="ui-panel">
             <button id="btn-open-menu" style="background-color: #f39c12; color: #2c3e50; font-size: 1.1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">☰ Menu Principal</button>
+
+            <!-- Bouton d'ouverture du panneau d'inspection (tiroir), visible seulement en mobile/tablette -->
+            <button id="btn-toggle-side" style="color: white; font-size: 1em; padding: 10px 12px;">🔍 Carte</button>
             
             <!-- BOUTON NEMESIS (Caché par défaut, activé par le JS) -->
             <button id="btn-add-nemesis" class="hidden" style="background-color: #8e44ad; color: white; font-size: 1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-radius: 5px; cursor: pointer; border: none; font-weight: bold; margin-left: 15px;">😈 Ajouter Némésis</button>
