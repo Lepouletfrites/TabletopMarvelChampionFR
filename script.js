@@ -1,3 +1,6 @@
+// --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
+const GAME_VERSION = "1.1";
+
 // --- CONFIGURATION & DOM CONSTANTS ---
 const boardWrapper = document.getElementById('board-wrapper');
 const board = document.getElementById('game-board');
@@ -819,9 +822,9 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     let frontUrl = getImageUrl(cardData);
     let backUrl = explicitBackUrl || defaultBack;
 
-    // Détermination de la menace de départ pour les Manigances Annexes
+    // Détermination de la menace de départ pour Manigances Annexes ET Principales
     let initThreat = 0;
-    if (cardData.type_code === 'side_scheme') {
+    if (cardData.type_code === 'side_scheme' || cardData.type_code === 'main_scheme') {
         if (cardData.base_threat !== undefined) {
             initThreat = cardData.base_threat;
         } else if (cardData.base_threat_fixed !== undefined) {
@@ -1473,6 +1476,7 @@ function saveGameState(isAutoSave = false) {
     
     try {
         const state = {
+            version: GAME_VERSION, // Sauvegarde de la version pour la détection
             myDeck, discardPile, encounterDeck, encounterDiscardPile,
             heroSecDeck, heroSecDiscard, 
             villainSecDecks, villainSecDiscards,
@@ -1552,6 +1556,14 @@ function loadGameState() {
     try {
         const state = JSON.parse(saved);
         
+        // VÉRIFICATION DE LA VERSION : si ancienne version, on nettoie tout pour appliquer la mise à jour
+        if (!state.version || state.version !== GAME_VERSION) {
+            console.log("Nouvelle version du site détectée ! Réinitialisation des données...");
+            localStorage.removeItem('marvelVTT_save');
+            initMenus();
+            return;
+        }
+
         myDeck = state.myDeck || [];
         discardPile = state.discardPile || [];
         encounterDeck = state.encounterDeck || [];
