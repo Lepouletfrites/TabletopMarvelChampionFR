@@ -264,6 +264,7 @@ btnLoadCustomDeck.addEventListener('click', async () => {
         let dbHeroId = null;
         let dbSecondaryDeck = null;
         if (typeof MARVEL_DB !== 'undefined') {
+            // Fait le lien avec la base de données locale pour trouver l'ID
             const match = MARVEL_DB.heroes.find(h => h.hero_code.replace(/[ab]$/,'') === heroCode.replace(/[ab]$/,''));
             if (match) {
                 dbHeroId = match.id;
@@ -296,6 +297,7 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     
     currentHeroId = dbHeroId; 
 
+    // On retire l'identité du deck
     const indicesToRemove = [coreCode, coreCode + 'a', coreCode + 'b'];
     indicesToRemove.forEach(code => {
         let index;
@@ -315,7 +317,7 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     
     // POSITIONNEMENT ABSOLU POUR ALIGNEMENT PARFAIT
     const spawnX = CENTER_X;
-    const spawnY = CENTER_Y + 300; // Très bas pour l'espacement
+    const spawnY = CENTER_Y + 400; // Espace vers le bas
     
     putOnBoardAt(heroDOM, spawnX, spawnY, false);
 
@@ -323,6 +325,28 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     heroHpInput.value = startFace.health || 10;
     heroHandSizeSpan.innerText = heroDOM.dataset.handSizeA;
     
+    // GESTION CARTES DE DÉPART (START ON BOARD) POUR LE HÉROS
+    if (currentHeroId) {
+        const heroDef = MARVEL_DB.heroes.find(h => h.id === currentHeroId);
+        if (heroDef && heroDef.start_on_board) {
+            for (let code of heroDef.start_on_board) {
+                // On cherche la carte dans le deck généré
+                let idx = myDeck.indexOf(code);
+                if (idx !== -1) {
+                    // Si on la trouve, on la retire du deck
+                    myDeck.splice(idx, 1);
+                    // On la télécharge et on la pose
+                    let cardData = await fetchAPI(code);
+                    if (cardData) {
+                        let cardDom = buildCardDOM(cardData);
+                        // On la décale légèrement à droite du héros
+                        putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
+                    }
+                }
+            }
+        }
+    }
+
     // GESTION DECK SECONDAIRE HÉROS
     if (secondaryDeckData) {
         heroSecDeck = [...secondaryDeckData];
@@ -331,10 +355,10 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         let hdd = document.getElementById('board-hero-discard');
         hd.classList.remove('hidden');
         hdd.classList.remove('hidden');
-        hd.style.left = (spawnX + 180) + "px";
+        hd.style.left = (spawnX + 300) + "px"; // Décalé un peu plus loin à cause du start_on_board
         hd.style.top = (spawnY) + "px";
-        hdd.style.left = (spawnX + 320) + "px";
-        hdd.style.top = (spawnY) + "px";
+        hdd.style.left = (spawnX + 440) + "px";
+        hd.style.top = (spawnY) + "px";
     }
 
     if (currentHeroId && btnAddNemesis) {
@@ -417,7 +441,7 @@ btnLoadVillain.addEventListener('click', async () => {
 
     // POSITIONNEMENT ABSOLU POUR ALIGNEMENT PARFAIT
     const spawnX = CENTER_X;
-    const spawnY = CENTER_Y - 300; // Très haut pour l'espacement
+    const spawnY = CENTER_Y - 400; // Espace vers le haut
 
     if (currentVillainStages.length > currentVillainStageIndex) {
         let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
@@ -456,10 +480,11 @@ btnLoadVillain.addEventListener('click', async () => {
         vd.classList.remove('hidden');
         vdd.classList.remove('hidden');
         
-        vd.style.left = (spawnX + 180 + (vSecCount * 280)) + "px";
+        // On décale loin à droite pour ne pas gêner les "start_on_board"
+        vd.style.left = (spawnX + 300 + (vSecCount * 150)) + "px";
         vd.style.top = (spawnY) + "px";
-        vdd.style.left = (spawnX + 320 + (vSecCount * 280)) + "px";
-        vdd.style.top = (spawnY) + "px";
+        vdd.style.left = (spawnX + 300 + (vSecCount * 150)) + "px";
+        vdd.style.top = (spawnY + 180) + "px"; // Défausse en dessous
         
         if (title) vd.innerHTML = `${title}<br><span id="board-villain-deck-count-${vSecCount}">0</span>`;
         vSecCount++;
@@ -481,6 +506,9 @@ btnLoadVillain.addEventListener('click', async () => {
         villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
     }
 
+    // On prépare une liste des cartes qui doivent démarrer en jeu
+    let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
+
     modularsToLoad.forEach(mId => {
         let modDef = MARVEL_DB.modulars.find(m => m.id === mId);
         if (modDef) {
@@ -488,8 +516,27 @@ btnLoadVillain.addEventListener('click', async () => {
             if (modDef.secondary_deck) {
                 deployVillainSecDeck(modDef.secondary_deck, modDef.name.substring(0, 15).toUpperCase());
             }
+            // Si le set modulaire a lui aussi des cartes "start_on_board", on les ajoute à la liste
+            if (modDef.start_on_board) {
+                villainCardsToSpawn.push(...modDef.start_on_board);
+            }
         }
     });
+
+    // PÊCHE DES CARTES START_ON_BOARD DANS LE DECK RENCONTRE
+    for (let code of villainCardsToSpawn) {
+        let idx = encounterDeck.indexOf(code);
+        if (idx !== -1) {
+            // Retire la carte du deck rencontre
+            encounterDeck.splice(idx, 1);
+            let cardData = await fetchAPI(code);
+            if (cardData) {
+                let cardDom = buildCardDOM(cardData);
+                // On les pose légèrement à droite du méchant principal
+                putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
+            }
+        }
+    }
 
     shuffleArray(encounterDeck);
     encounterDeckElement.classList.remove('hidden');
