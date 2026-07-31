@@ -42,7 +42,6 @@ const modalTitle = document.getElementById('modal-title');
 const modalCardsContainer = document.getElementById('modal-cards-container');
 const modalClose = document.getElementById('modal-close');
 
-// Nouveaux Boutons Menus progression Scenario
 const menuNextScheme = document.getElementById('menu-next-scheme');
 const menuNextVillain = document.getElementById('menu-next-villain');
 const menuProgressionSeparator = document.getElementById('menu-progression-separator');
@@ -77,6 +76,10 @@ let currentVillainStages = [];
 let currentVillainStageIndex = 0;
 let currentVillainSchemes = [];
 let currentSchemeIndex = 0;
+
+// --- GESTION DES JETONS ---
+let activeTokenType = null;
+let activeTokenAction = null; // 'add' ou 'sub'
 
 const CARD_BACKS = { player: 'assets/player_back.jpg', encounter: 'assets/encounter_back.jpg' };
 const CARD_BACKS_FALLBACK = {
@@ -359,10 +362,7 @@ btnLoadVillain.addEventListener('click', async () => {
     
     const villainDef = MARVEL_DB.villains.find(v => v.id === vId);
     
-    // Initialisation de la progression du scénario
     currentVillainStages = villainDef.stages;
-    
-    // CORRECTION EXPERT : Si Expert, on commence à l'index 1 (Stade II)
     currentVillainStageIndex = (diff === 'expert') ? 1 : 0; 
     currentVillainSchemes = villainDef.schemes;
     currentSchemeIndex = 0;
@@ -371,7 +371,6 @@ btnLoadVillain.addEventListener('click', async () => {
     const spawnX = (rect.width / 2 - boardX) / scale;
     const spawnY = (rect.height / 2 - boardY) / scale;
 
-    // Déploiement uniquement du STADE initial (I ou II)
     if (currentVillainStages.length > currentVillainStageIndex) {
         let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
         if (vData) {
@@ -380,7 +379,6 @@ btnLoadVillain.addEventListener('click', async () => {
         }
     }
 
-    // Déploiement uniquement de la MANIGANCE PRINCIPALE 1
     if (currentVillainSchemes.length > 0) {
         let baseCode = currentVillainSchemes[0].replace(/[ab]$/, '');
         let frontData = await fetchAPI(baseCode); 
@@ -390,7 +388,7 @@ btnLoadVillain.addEventListener('click', async () => {
             let sDom = buildCardDOM(frontData, backData ? getImageUrl(backData) : null);
             sDom.dataset.cardDataA = JSON.stringify(frontData);
             if (backData) sDom.dataset.cardDataB = JSON.stringify(backData);
-            sDom.id = `main-scheme-element`; // ID Unique pour le bouton phase suivante
+            sDom.id = `main-scheme-element`;
             putOnBoardAt(sDom, spawnX - 250, spawnY - 150, false);
         }
     }
@@ -421,8 +419,59 @@ btnLoadVillain.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 4. SYSTÈME DE JEU
+// 4. SYSTÈME DE JEU ET JETONS
 // ==========================================
+
+// --- UI DES BOUTONS DE JETONS ---
+document.querySelectorAll('.token-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        let type = btn.dataset.type;
+        
+        if (activeTokenType === type) {
+            if (activeTokenAction === 'add') {
+                activeTokenAction = 'sub';
+            } else {
+                activeTokenType = null;
+                activeTokenAction = null;
+            }
+        } else {
+            activeTokenType = type;
+            activeTokenAction = 'add';
+        }
+        updateTokenBarUI();
+    });
+});
+
+function updateTokenBarUI() {
+    document.querySelectorAll('.token-btn').forEach(b => {
+        let type = b.dataset.type;
+        let baseText = b.dataset.basetext;
+        
+        if (activeTokenType === type) {
+            b.classList.add('active');
+            b.innerText = activeTokenAction === 'add' ? `${baseText} (+)` : `${baseText} (-)`;
+        } else {
+            b.classList.remove('active');
+            b.innerText = baseText;
+        }
+    });
+}
+
+function applyTokenModeToCard(card, type, action) {
+    if (card.classList.contains('in-hand')) return; 
+    
+    // Support des anciennes sauvegardes ("true"/"false" vs chiffres)
+    let val = parseInt(card.dataset[type]);
+    if (isNaN(val)) val = card.dataset[type] === "true" ? 1 : 0; 
+    
+    if (action === 'add') val++;
+    else val--;
+    
+    val = Math.max(0, val);
+    card.dataset[type] = val;
+    syncTokenVisuals(card);
+}
 
 document.getElementById('btn-next-phase').addEventListener('click', async () => {
     phases[currentPhaseIndex].classList.remove('active');
@@ -435,7 +484,11 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
     }
     if (currentPhaseIndex === 2) {
         let mainScheme = document.getElementById('main-scheme-element'); 
-        if (mainScheme) updateToken(mainScheme, 'threat', 1);
+        if (mainScheme) {
+            let val = parseInt(mainScheme.dataset.threat || 0) + 1;
+            mainScheme.dataset.threat = val;
+            syncTokenVisuals(mainScheme);
+        }
     }
     saveGameState();
 });
@@ -498,14 +551,12 @@ function updateDeckCounters() {
     encounterDiscardCountText.innerText = encounterDiscardPile.length;
 }
 
-// CORRECTION ORIENTATION POUR MANIGANCE PRINCIPALE
 function updateCardOrientation(card) {
     if (!card.dataset || !card.dataset.cardData) return;
     let data = JSON.parse(card.dataset.cardData);
     let isFlipped = card.dataset.flipped === 'true'; 
     
     if (data.type_code === 'main_scheme') {
-        // Toujours en paysage (recto et verso)
         card.classList.add('landscape');
     } else if (!isFlipped && data.type_code === 'side_scheme') {
         card.classList.add('landscape');
@@ -526,6 +577,11 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
 
     card.dataset.damage = 0;
     card.dataset.threat = 0;
+    card.dataset.generic = 0;
+    card.dataset.tough = 0;
+    card.dataset.stunned = 0;
+    card.dataset.confused = 0;
+    
     card.dataset.code = cardData.code;
     card.dataset.faction = cardData.faction_code;
     card.dataset.flipped = "false";
@@ -540,6 +596,10 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
         <img src="${frontUrl}" class="card-front" alt="${cardData.name || 'Carte'}" onerror="this.onerror=null; this.src='${CARD_BACKS_FALLBACK[isEncounter ? 'encounter' : 'player']}';"/>
         <div class="token damage-token hidden">0</div>
         <div class="token threat-token hidden">0</div>
+        <div class="token generic-token hidden">0</div>
+        <div class="status-container tough-container"></div>
+        <div class="status-container stunned-container"></div>
+        <div class="status-container confused-container"></div>
     `;
 
     updateCardOrientation(card);
@@ -551,11 +611,42 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
 function syncTokenVisuals(card) {
     const dmg = parseInt(card.dataset.damage) || 0;
     const thrt = parseInt(card.dataset.threat) || 0;
+    const gen = parseInt(card.dataset.generic) || 0;
+    
     const dmgTok = card.querySelector('.damage-token');
     const thrtTok = card.querySelector('.threat-token');
-    dmgTok.innerText = dmg; thrtTok.innerText = thrt;
-    dmgTok.classList.toggle('hidden', dmg <= 0);
-    thrtTok.classList.toggle('hidden', thrt <= 0);
+    const genTok = card.querySelector('.generic-token');
+    
+    if(dmgTok) { dmgTok.innerText = dmg; dmgTok.classList.toggle('hidden', dmg <= 0); }
+    if(thrtTok) { thrtTok.innerText = thrt; thrtTok.classList.toggle('hidden', thrt <= 0); }
+    if(genTok) { genTok.innerText = gen; genTok.classList.toggle('hidden', gen <= 0); }
+    
+    let toughCount = parseInt(card.dataset.tough);
+    if(isNaN(toughCount)) toughCount = card.dataset.tough === "true" ? 1 : 0;
+    
+    let stunnedCount = parseInt(card.dataset.stunned);
+    if(isNaN(stunnedCount)) stunnedCount = card.dataset.stunned === "true" ? 1 : 0;
+    
+    let confusedCount = parseInt(card.dataset.confused);
+    if(isNaN(confusedCount)) confusedCount = card.dataset.confused === "true" ? 1 : 0;
+    
+    const toughCont = card.querySelector('.tough-container');
+    if(toughCont) {
+        toughCont.innerHTML = '';
+        for(let i=0; i<toughCount; i++) toughCont.innerHTML += `<div class="status-token" style="background-color:#e67e22; color:white;">TENACE</div>`;
+    }
+    
+    const stunnedCont = card.querySelector('.stunned-container');
+    if(stunnedCont) {
+        stunnedCont.innerHTML = '';
+        for(let i=0; i<stunnedCount; i++) stunnedCont.innerHTML += `<div class="status-token" style="background-color:#8e44ad; color:white;">SONNÉ</div>`;
+    }
+    
+    const confusedCont = card.querySelector('.confused-container');
+    if(confusedCont) {
+        confusedCont.innerHTML = '';
+        for(let i=0; i<confusedCount; i++) confusedCont.innerHTML += `<div class="status-token" style="background-color:#2ecc71; color:white;">DÉSORIENTÉ</div>`;
+    }
 }
 
 function putOnBoardAt(cardElement, x, y, faceDown = false) {
@@ -568,14 +659,18 @@ function putOnBoardAt(cardElement, x, y, faceDown = false) {
     cardElement.querySelector('.card-front').src = faceDown ? cardElement.dataset.backUrl : cardElement.dataset.frontUrl;
     
     updateCardOrientation(cardElement);
-
     board.appendChild(cardElement);
 }
 
 function putInHand(cardElement) {
     cardElement.classList.add('in-hand'); cardElement.style.left = ""; cardElement.style.top = "";
     cardElement.classList.remove('exhausted');
-    cardElement.dataset.damage = 0; cardElement.dataset.threat = 0;
+    cardElement.dataset.damage = 0; 
+    cardElement.dataset.threat = 0;
+    cardElement.dataset.generic = 0;
+    cardElement.dataset.tough = 0;
+    cardElement.dataset.stunned = 0;
+    cardElement.dataset.confused = 0;
     syncTokenVisuals(cardElement);
     
     if (cardElement.dataset.flipped === 'true') {
@@ -598,7 +693,20 @@ function discardCard(cardElement, forcedPile = null) {
 // --- INTERACTIONS DE CARTES & DRAG & DROP ---
 function setupCardInteractions(card) {
     card.addEventListener('dblclick', () => {
+        if (activeTokenType) return; // BLOQUE L'INCLINAISON SI MODE JETON ACTIF
         if (!card.classList.contains('in-hand')) card.classList.toggle('exhausted');
+    });
+
+    let lastTap = 0;
+    card.addEventListener('touchend', (e) => {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        if (tapLength < 300 && tapLength > 0) {
+            if (activeTokenType) return; // BLOQUE L'INCLINAISON SI MODE JETON ACTIF
+            if (!card.classList.contains('in-hand')) card.classList.toggle('exhausted');
+            e.preventDefault();
+        }
+        lastTap = currentTime;
     });
 
     card.addEventListener('contextmenu', (e) => {
@@ -614,13 +722,11 @@ function setupCardInteractions(card) {
         menuNextVillain.classList.add('hidden');
         menuProgressionSeparator.classList.add('hidden');
 
-        // Dynamiquement afficher les options de progression (Manigance)
         if (data.type_code === 'main_scheme' && currentSchemeIndex + 1 < currentVillainSchemes.length) {
             menuNextScheme.classList.remove('hidden');
             showSeparator = true;
         }
         
-        // Dynamiquement afficher les options de progression (Méchant)
         if (data.type_code === 'villain' && currentVillainStageIndex + 1 < currentVillainStages.length) {
             menuNextVillain.classList.remove('hidden');
             showSeparator = true;
@@ -628,14 +734,17 @@ function setupCardInteractions(card) {
 
         if (showSeparator) menuProgressionSeparator.classList.remove('hidden');
 
-        let x = e.clientX, y = e.clientY;
-        if (x + contextMenu.offsetWidth > window.innerWidth) x = window.innerWidth - contextMenu.offsetWidth - 5;
-        if (y + contextMenu.offsetHeight > window.innerHeight) y = window.innerHeight - contextMenu.offsetHeight - 5;
-        contextMenu.style.left = x + 'px'; contextMenu.style.top = y + 'px';
+        let clientX = e.clientX || (e.touches && e.touches.length > 0 ? e.touches[0].clientX : 0);
+        let clientY = e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0);
+
+        if (clientX + contextMenu.offsetWidth > window.innerWidth) clientX = window.innerWidth - contextMenu.offsetWidth - 5;
+        if (clientY + contextMenu.offsetHeight > window.innerHeight) clientY = window.innerHeight - contextMenu.offsetHeight - 5;
+        
+        contextMenu.style.left = clientX + 'px'; 
+        contextMenu.style.top = clientY + 'px';
     });
 }
 
-// Bouton de progression: Manigance Suivante
 menuNextScheme.addEventListener('click', async () => {
     if (targetCard) {
         let x = parseFloat(targetCard.style.left);
@@ -660,7 +769,6 @@ menuNextScheme.addEventListener('click', async () => {
     hideAllMenus();
 });
 
-// Bouton de progression: Méchant Suivant
 menuNextVillain.addEventListener('click', async () => {
     if (targetCard) {
         let x = parseFloat(targetCard.style.left);
@@ -679,9 +787,9 @@ menuNextVillain.addEventListener('click', async () => {
     hideAllMenus();
 });
 
-
 function makeDraggable(element) {
     let isDragging = false, startX, startY;
+    
     element.onmousedown = (e) => {
         if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel')) return;
         if (e.button === 2) return;
@@ -693,21 +801,29 @@ function makeDraggable(element) {
 
     element.addEventListener('touchstart', (e) => {
         if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel')) return;
-        isDragging = false; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-    }, {passive: true});
+        isDragging = false; 
+        startX = e.touches[0].clientX; 
+        startY = e.touches[0].clientY;
+        
+        document.addEventListener('touchmove', elementTouchDrag, {passive: false});
+        document.addEventListener('touchend', closeTouchDragElement);
+    }, {passive: false});
 
-    function elementDrag(e) {
-        e.preventDefault();
-        let clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    function elementDrag(e) { handleMove(e.clientX, e.clientY, e); }
+    function elementTouchDrag(e) { handleMove(e.touches[0].clientX, e.touches[0].clientY, e); }
 
-        if (!isDragging && (Math.abs(clientX - startX) > 3 || Math.abs(clientY - startY) > 3)) {
-            isDragging = true; element.classList.remove('in-hand'); element.style.zIndex = topZIndex++;
+    function handleMove(clientX, clientY, e) {
+        if (!isDragging && (Math.abs(clientX - startX) > 5 || Math.abs(clientY - startY) > 5)) {
+            isDragging = true; 
+            element.classList.remove('in-hand'); 
+            element.style.zIndex = topZIndex++;
         }
 
         if (isDragging) {
-            const isOverHUD = clientY > window.innerHeight - 140; 
+            if(e.preventDefault) e.preventDefault(); 
+            const isOverHUD = clientY > window.innerHeight - 165; 
             const isLandscape = element.classList.contains('landscape');
+            
             if (isOverHUD) {
                 if (element.parentNode !== document.body) {
                     document.body.appendChild(element);
@@ -731,9 +847,20 @@ function makeDraggable(element) {
 
     function closeDragElement(e) {
         document.onmouseup = null; document.onmousemove = null;
-        let clientX = e.clientX || (e.changedTouches && e.changedTouches[0].clientX);
-        let clientY = e.clientY || (e.changedTouches && e.changedTouches[0].clientY);
+        handleEnd(e.clientX, e.clientY);
+    }
 
+    function closeTouchDragElement(e) {
+        document.removeEventListener('touchmove', elementTouchDrag);
+        document.removeEventListener('touchend', closeTouchDragElement);
+        if (e.changedTouches.length > 0) {
+            let clientX = e.changedTouches[0].clientX;
+            let clientY = e.changedTouches[0].clientY;
+            handleEnd(clientX, clientY);
+        }
+    }
+
+    function handleEnd(clientX, clientY) {
         if (isDragging) {
             element.style.visibility = 'hidden';
             const dropTarget = document.elementFromPoint(clientX, clientY);
@@ -746,12 +873,17 @@ function makeDraggable(element) {
             else if (element.parentNode !== board) putOnBoardAt(element, (clientX - boardX) / scale, (clientY - boardY) / scale, element.dataset.flipped === 'true');
             saveGameState();
         } else {
-            const isFlipped = element.dataset.flipped === 'true';
-            const currentImg = isFlipped ? element.dataset.backUrl : element.dataset.frontUrl;
-            let dataToDisplay = element.dataset.cardData;
-            if (isFlipped && element.dataset.cardDataB) dataToDisplay = element.dataset.cardDataB;
-            else if (!isFlipped && element.dataset.cardDataA) dataToDisplay = element.dataset.cardDataA;
-            updateSidePanel(dataToDisplay, currentImg);
+            if (activeTokenType) {
+                applyTokenModeToCard(element, activeTokenType, activeTokenAction);
+                saveGameState();
+            } else {
+                const isFlipped = element.dataset.flipped === 'true';
+                const currentImg = isFlipped ? element.dataset.backUrl : element.dataset.frontUrl;
+                let dataToDisplay = element.dataset.cardData;
+                if (isFlipped && element.dataset.cardDataB) dataToDisplay = element.dataset.cardDataB;
+                else if (!isFlipped && element.dataset.cardDataA) dataToDisplay = element.dataset.cardDataA;
+                updateSidePanel(dataToDisplay, currentImg);
+            }
         }
     }
 }
@@ -759,6 +891,18 @@ function makeDraggable(element) {
 // --- MENUS CONTEXTUELS ET ACTIONS ---
 document.addEventListener('click', (e) => {
     if (!e.target.closest('#context-menu') && !e.target.closest('#pile-context-menu')) hideAllMenus();
+    
+    if (!e.target.closest('#token-bar') && !e.target.closest('.card') && !e.target.closest('.token-btn')) {
+        if (activeTokenType) { activeTokenType = null; activeTokenAction = null; updateTokenBarUI(); }
+    }
+});
+
+document.addEventListener('touchstart', (e) => {
+    if (!e.target.closest('#context-menu') && !e.target.closest('#pile-context-menu') && !e.target.closest('.card') && !e.target.closest('.pile-element')) hideAllMenus();
+    
+    if (!e.target.closest('#token-bar') && !e.target.closest('.card') && !e.target.closest('.token-btn')) {
+        if (activeTokenType) { activeTokenType = null; activeTokenAction = null; updateTokenBarUI(); }
+    }
 });
 
 function hideAllMenus() { contextMenu.classList.add('hidden'); pileContextMenu.classList.add('hidden'); }
@@ -789,10 +933,20 @@ document.getElementById('menu-flip').addEventListener('click', () => {
     hideAllMenus(); saveGameState();
 });
 
-document.getElementById('menu-dmg-plus').addEventListener('click', () => { if (targetCard) { updateToken(targetCard, 'damage', 1); saveGameState(); } hideAllMenus(); });
-document.getElementById('menu-dmg-minus').addEventListener('click', () => { if (targetCard) { updateToken(targetCard, 'damage', -1); saveGameState(); } hideAllMenus(); });
-document.getElementById('menu-thrt-plus').addEventListener('click', () => { if (targetCard) { updateToken(targetCard, 'threat', 1); saveGameState(); } hideAllMenus(); });
-document.getElementById('menu-thrt-minus').addEventListener('click', () => { if (targetCard) { updateToken(targetCard, 'threat', -1); saveGameState(); } hideAllMenus(); });
+document.getElementById('menu-clear-tokens').addEventListener('click', () => { 
+    if (targetCard) { 
+        targetCard.dataset.damage = 0;
+        targetCard.dataset.threat = 0;
+        targetCard.dataset.generic = 0;
+        targetCard.dataset.tough = 0;
+        targetCard.dataset.stunned = 0;
+        targetCard.dataset.confused = 0;
+        syncTokenVisuals(targetCard);
+        saveGameState(); 
+    } 
+    hideAllMenus(); 
+});
+
 document.getElementById('menu-discard').addEventListener('click', () => { if (targetCard) discardCard(targetCard); hideAllMenus(); saveGameState(); });
 document.getElementById('menu-return-top').addEventListener('click', () => returnCardToDeck('top'));
 document.getElementById('menu-return-bottom').addEventListener('click', () => returnCardToDeck('bottom'));
@@ -810,13 +964,6 @@ function returnCardToDeck(position) {
     updateDeckCounters(); hideAllMenus(); saveGameState();
 }
 
-function updateToken(card, type, amount) {
-    if (card.classList.contains('in-hand')) return;
-    let val = Math.max(0, parseInt(card.dataset[type]) + amount);
-    card.dataset[type] = val;
-    syncTokenVisuals(card);
-}
-
 document.querySelectorAll('.pile-element').forEach(pile => {
     pile.addEventListener('contextmenu', (e) => {
         e.preventDefault(); e.stopPropagation(); hideAllMenus();
@@ -824,10 +971,14 @@ document.querySelectorAll('.pile-element').forEach(pile => {
         menuPileShuffleIntoDeck.style.display = (targetPileType === 'player-discard' || targetPileType === 'encounter-discard') ? 'block' : 'none';
         pileContextMenu.classList.remove('hidden');
         
-        let x = e.clientX, y = e.clientY;
-        if (x + pileContextMenu.offsetWidth > window.innerWidth) x = window.innerWidth - pileContextMenu.offsetWidth - 5;
-        if (y + pileContextMenu.offsetHeight > window.innerHeight) y = window.innerHeight - pileContextMenu.offsetHeight - 5;
-        pileContextMenu.style.left = x + 'px'; pileContextMenu.style.top = y + 'px';
+        let clientX = e.clientX || (e.touches && e.touches.length > 0 ? e.touches[0].clientX : 0);
+        let clientY = e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0);
+        
+        if (clientX + pileContextMenu.offsetWidth > window.innerWidth) clientX = window.innerWidth - pileContextMenu.offsetWidth - 5;
+        if (clientY + pileContextMenu.offsetHeight > window.innerHeight) clientY = window.innerHeight - pileContextMenu.offsetHeight - 5;
+        
+        pileContextMenu.style.left = clientX + 'px'; 
+        pileContextMenu.style.top = clientY + 'px';
     });
 });
 
@@ -872,7 +1023,7 @@ async function openInspectModal(pileType) {
 
 modalClose.addEventListener('click', () => modalInspect.classList.add('hidden'));
 
-// --- CAMÉRA (PAN & ZOOM) ---
+// --- CAMÉRA (ORDINATEUR : MOLETTE ET SOURIS) ---
 boardWrapper.addEventListener('wheel', (e) => {
     e.preventDefault();
     const zoomIntensity = 0.08; const wheel = e.deltaY < 0 ? 1 : -1;
@@ -894,6 +1045,73 @@ window.addEventListener('mousemove', (e) => {
 });
 window.addEventListener('mouseup', () => { if (isPanning && !hasPanned) clearSidePanel(); isPanning = false; });
 
+// --- CAMÉRA (MOBILE : GLISSEMENT ET PINCEMENT) ---
+let initialPinchDistance = null;
+let initialScale = scale;
+
+boardWrapper.addEventListener('touchstart', (e) => {
+    if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel') || e.target.closest('.card') || e.target.closest('.pile-element')) return;
+    
+    if (e.touches.length === 1) {
+        isPanning = true; hasPanned = false; 
+        startPanX = e.touches[0].clientX - boardX; 
+        startPanY = e.touches[0].clientY - boardY;
+    } else if (e.touches.length === 2) {
+        isPanning = false; 
+        initialPinchDistance = getPinchDistance(e.touches);
+        initialScale = scale;
+    }
+}, {passive: false});
+
+boardWrapper.addEventListener('touchmove', (e) => {
+    if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel') || e.target.closest('.card') || e.target.closest('.pile-element')) return;
+    
+    if (e.touches.length === 1 && isPanning) {
+        e.preventDefault(); 
+        hasPanned = true; 
+        boardX = e.touches[0].clientX - startPanX; 
+        boardY = e.touches[0].clientY - startPanY; 
+        updateCamera();
+    } else if (e.touches.length === 2 && initialPinchDistance) {
+        e.preventDefault();
+        const currentDistance = getPinchDistance(e.touches);
+        const zoomFactor = currentDistance / initialPinchDistance;
+        
+        let newScale = initialScale * zoomFactor;
+        newScale = Math.max(0.3, Math.min(newScale, 2.5));
+
+        const rect = boardWrapper.getBoundingClientRect();
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+
+        const targetX = (centerX - boardX) / scale;
+        const targetY = (centerY - boardY) / scale;
+
+        scale = newScale;
+        boardX = centerX - (targetX * scale);
+        boardY = centerY - (targetY * scale);
+
+        updateCamera();
+        
+        initialPinchDistance = currentDistance; 
+        initialScale = scale;
+    }
+}, {passive: false});
+
+boardWrapper.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) { initialPinchDistance = null; }
+    if (e.touches.length === 0) { 
+        if (isPanning && !hasPanned) clearSidePanel(); 
+        isPanning = false; 
+    }
+});
+
+function getPinchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
 function updateCamera() { board.style.transform = `translate(${boardX}px, ${boardY}px) scale(${scale})`; }
 
 function updateSidePanel(cardDataString, imageUrl) {
@@ -903,10 +1121,12 @@ function updateSidePanel(cardDataString, imageUrl) {
     zoomImg.src = imageUrl; zoomTitle.innerText = cardData.name || 'Inconnu';
     zoomTraits.innerText = cardData.traits || ''; zoomDesc.innerHTML = cleanText.replace(/\n/g, '<br>');
 }
+
 function clearSidePanel() {
     zoomImg.src = "https://placehold.co/300x420/2c3e50/FFF?text=Clique+sur+une+carte";
     zoomTitle.innerText = "---"; zoomTraits.innerText = ""; zoomDesc.innerText = "Sélectionne une carte.";
 }
+
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; }
 }
@@ -924,7 +1144,6 @@ function saveGameState() {
             heroHp: heroHpInput.value,
             heroHandSize: heroHandSizeSpan.innerText,
             
-            // On sauvegarde l'état du scénario actuel
             currentVillainStages, currentVillainStageIndex,
             currentVillainSchemes, currentSchemeIndex,
             
@@ -971,7 +1190,6 @@ function loadGameState() {
         encounterDiscardPile = state.encounterDiscardPile || [];
         currentHeroId = state.currentHeroId || null;
         
-        // Restauration de l'état du scénario
         currentVillainStages = state.currentVillainStages || [];
         currentVillainStageIndex = state.currentVillainStageIndex || 0;
         currentVillainSchemes = state.currentVillainSchemes || [];
@@ -994,7 +1212,6 @@ function loadGameState() {
         if (currentHeroId && btnAddNemesis) btnAddNemesis.classList.remove('hidden');
         if (myDeck.length > 0 || discardPile.length > 0) btnDrawHand.classList.remove('hidden');
 
-        // Reconstruction du plateau
         board.innerHTML = '';
         handArea.innerHTML = '';
         

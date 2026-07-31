@@ -41,10 +41,18 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 #board-wrapper:active { cursor: grabbing; }
 #game-board { position: absolute; width: 4000px; height: 4000px; background-color: #34495e; background-image: radial-gradient(#2c3e50 20%, transparent 20%); background-size: 50px 50px; transform-origin: top left; }
 
-#bottom-hud { height: 140px; background-color: #2c3e50; border-top: 3px solid #000; display: flex; z-index: 50; box-shadow: 0 -4px 10px rgba(0,0,0,0.5); min-width: 0; }
+#bottom-hud { height: 165px; background-color: #2c3e50; border-top: 3px solid #000; display: flex; z-index: 50; box-shadow: 0 -4px 10px rgba(0,0,0,0.5); min-width: 0; }
 .deck-area { width: 90px; display: flex; justify-content: center; align-items: center; padding: 5px; flex-shrink: 0; }
 
-#hand-area { flex: 1; display: flex; gap: 8px; padding: 10px; overflow-x: auto; align-items: center; justify-content: flex-start; min-width: 0; }
+#hand-container { flex: 1; display: flex; flex-direction: column; min-width: 0; border-left: 1px solid #1a252f; border-right: 1px solid #1a252f; }
+#hand-area { flex: 1; display: flex; gap: 8px; padding: 10px; overflow-x: auto; align-items: center; justify-content: flex-start; }
+
+/* BARRE DE JETONS */
+#token-bar { height: 38px; background: #1a252f; display: flex; gap: 5px; padding: 4px 10px; overflow-x: auto; align-items: center; border-bottom: 2px solid #000; }
+#token-bar::-webkit-scrollbar { height: 4px; }
+#token-bar::-webkit-scrollbar-thumb { background: #7f8c8d; border-radius: 4px; }
+.token-btn { padding: 4px 12px; font-size: 0.75em; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); white-space: nowrap; transition: all 0.15s; font-weight: bold; cursor: pointer; color: white; }
+.token-btn.active { box-shadow: 0 0 0 2px #fff inset; border-color: #fff; transform: scale(1.05); }
 
 #deck, #discard-pile, #encounter-deck, #encounter-discard-pile { width: 70px; height: 100px; border-radius: 6px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; text-align: center; font-size: 0.75em; cursor: pointer; user-select: none; }
 #deck { background: linear-gradient(135deg, #2980b9, #3498db); border: 2px solid #fff; }
@@ -65,16 +73,25 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .card.is-dragging-hud { position: fixed !important; pointer-events: none !important; z-index: 9999 !important; transition: none !important; width: 85px; height: 119px; transform: none !important; }
 .card.landscape.is-dragging-hud { width: 119px; height: 85px; }
 
-.token { position: absolute; font-weight: bold; width: 26px; height: 26px; font-size: 0.85em; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; z-index: 10; }
+/* NOUVEAUX JETONS EMPILABLES */
+.token { position: absolute; font-weight: bold; width: 26px; height: 26px; font-size: 0.85em; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; z-index: 10; pointer-events: none; }
 .damage-token { top: -8px; right: -8px; background-color: #c0392b; color: white; }
 .threat-token { top: -8px; left: -8px; background-color: #f1c40f; color: #2c3e50; }
+.generic-token { top: -8px; left: 50%; transform: translateX(-50%); background-color: #3498db; color: white; }
+
+/* Les conteneurs pour empiler verticalement (du bas vers le haut) */
+.status-container { position: absolute; display: flex; flex-direction: column-reverse; gap: 2px; bottom: -8px; z-index: 10; pointer-events: none; }
+.tough-container { right: -8px; }
+.stunned-container { left: -8px; }
+.confused-container { left: 50%; transform: translateX(-50%); }
+
+.status-token { font-weight: bold; font-size: 0.6em; height: 18px; padding: 0 5px; border-radius: 4px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0px 2px 4px rgba(0,0,0,0.5); }
 
 #context-menu, #pile-context-menu { position: fixed; background: #ecf0f1; color: #2c3e50; border-radius: 5px; box-shadow: 2px 2px 10px rgba(0,0,0,0.5); padding: 5px 0; z-index: 10000; min-width: 180px; font-size: 0.85em; }
 .menu-item { padding: 10px 15px; cursor: pointer; font-weight: bold; }
 .menu-item:hover { background-color: #3498db; color: white; }
 .menu-separator { height: 1px; background-color: #bdc3c7; margin: 5px 0; }
 
-/* MODIFICATIONS RESPONSIVES DU MENU MODAL */
 .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: flex; justify-content: center; align-items: center; z-index: 20000; padding: 10px; }
 .modal-content { background: #2c3e50; width: 100%; max-width: 450px; max-height: 90vh; overflow-y: auto; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 5px 20px rgba(0,0,0,0.8); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #34495e; padding-bottom: 10px; margin-bottom: 15px; flex-shrink: 0; }
@@ -93,7 +110,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (max-width: 1024px) {
     #side-panel { width: 220px; }
     #phase-panel { width: 190px; font-size: 0.9em; }
-    #bottom-hud { height: 120px; }
+    #bottom-hud { height: 145px; }
     .deck-area { width: 76px; }
     #deck, #discard-pile, #encounter-deck, #encounter-discard-pile { width: 62px; height: 88px; font-size: 0.7em; }
     .card { width: 100px; height: 140px; }
@@ -119,7 +136,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     #phase-list li { font-size: 0.68em; padding: 4px 6px; }
     #btn-next-phase { font-size: 0.75em; padding: 6px; }
 
-    #bottom-hud { height: 100px; }
+    #bottom-hud { height: 130px; }
+    #token-bar { height: 32px; padding: 2px 5px; }
+    .token-btn { padding: 2px 8px; font-size: 0.65em; }
     .deck-area { width: 60px; padding: 3px; }
     #deck, #discard-pile, #encounter-deck, #encounter-discard-pile { width: 50px; height: 72px; font-size: 0.62em; border-radius: 4px; }
     #hand-area { gap: 5px; padding: 6px; }
