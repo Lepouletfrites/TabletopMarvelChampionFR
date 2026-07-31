@@ -4,6 +4,7 @@ const board = document.getElementById('game-board');
 
 // Boutons du menu modal et panneau latéral
 const btnOpenMenu = document.getElementById('btn-open-menu');
+const btnUndo = document.getElementById('btn-undo'); // Bouton Undo
 const modalMenu = document.getElementById('modal-menu');
 const modalMenuClose = document.getElementById('modal-menu-close');
 const btnAddNemesis = document.getElementById('btn-add-nemesis');
@@ -51,15 +52,7 @@ const menuNextScheme = document.getElementById('menu-next-scheme');
 const menuNextVillain = document.getElementById('menu-next-villain');
 const menuProgressionSeparator = document.getElementById('menu-progression-separator');
 
-// --- BOUTONS ADDITIONNELS (Main / Défausse) ---
-const btnDrawHand = document.createElement('button');
-btnDrawHand.id = 'btn-draw-hand';
-btnDrawHand.innerHTML = '🃏 Compléter Main';
-btnDrawHand.style.backgroundColor = '#27ae60';
-btnDrawHand.style.marginLeft = '10px';
-btnDrawHand.classList.add('hidden'); 
-document.getElementById('ui-panel').appendChild(btnDrawHand);
-
+// --- BOUTONS ADDITIONNELS ---
 const menuPileShuffleIntoDeck = document.createElement('div');
 menuPileShuffleIntoDeck.className = 'menu-item';
 menuPileShuffleIntoDeck.id = 'menu-pile-shuffle-into-deck';
@@ -101,7 +94,7 @@ const CARD_BACKS_FALLBACK = {
     encounter: 'https://placehold.co/300x420/c0392b/FFF?text=RENCONTRE'
 };
 
-// --- ÉTAT DU JEU ---
+// --- ÉTAT DU JEU ET HISTORIQUE (UNDO) ---
 let topZIndex = 10;
 let myDeck = [], discardPile = [];
 let encounterDeck = [], encounterDiscardPile = [];
@@ -111,7 +104,39 @@ let scale = 1;
 let boardX = -CENTER_X + window.innerWidth / 2;
 let boardY = -CENTER_Y + window.innerHeight / 2;
 
+let stateHistory = [];
+let isUndoing = false;
+
 updateCamera();
+
+// --- GESTION DE L'HISTORIQUE ---
+function updateUndoButton() {
+    if (btnUndo) {
+        if (stateHistory.length > 1) {
+            btnUndo.classList.remove('hidden');
+        } else {
+            btnUndo.classList.add('hidden');
+        }
+    }
+}
+
+function undo() {
+    if (stateHistory.length > 1) {
+        isUndoing = true;
+        stateHistory.pop(); // Enlève l'état actuel
+        const prevStateString = stateHistory[stateHistory.length - 1];
+        
+        localStorage.setItem('marvelVTT_save', prevStateString);
+        loadGameState();
+        
+        updateUndoButton();
+        setTimeout(() => { isUndoing = false; }, 100);
+    }
+}
+
+if (btnUndo) {
+    btnUndo.addEventListener('click', undo);
+}
 
 // Boutons d'interface mobile
 if(btnToggleSide) btnToggleSide.addEventListener('click', () => { sidePanel.classList.add('open'); sidePanelOverlay.classList.add('open'); });
@@ -365,8 +390,6 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         btnAddNemesis.classList.remove('hidden');
     }
     
-    btnDrawHand.classList.remove('hidden'); 
-    
     shuffleArray(myDeck);
     deckElement.classList.remove('hidden');
     updateDeckCounters();
@@ -413,7 +436,6 @@ if (btnAddNemesis) {
             updateDeckCounters();
             encounterDeckElement.classList.remove('hidden'); 
             btnAddNemesis.classList.add('hidden'); 
-            alert(`🚨 L'Obligation a été mélangée et le Set Némésis a été déployé !`);
             saveGameState();
         } catch (e) {
             alert("Erreur lors de l'ajout du Némésis.");
@@ -603,22 +625,80 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
     currentPhaseIndex = (currentPhaseIndex + 1) % phases.length;
     phases[currentPhaseIndex].classList.add('active');
 
-    if (currentPhaseIndex === 1) {
-        document.querySelectorAll('.card.exhausted').forEach(card => card.classList.remove('exhausted'));
+    if (currentPhaseIndex === 1) { // 2. Fin de Phase Joueur (Redressement joueur uniquement)
+        document.querySelectorAll('.card.exhausted').forEach(card => {
+            if (card.dataset.faction !== 'encounter' && card.dataset.faction !== 'villain') {
+                card.classList.remove('exhausted');
+            }
+        });
         await drawToHandSize();
     }
-    if (currentPhaseIndex === 2) {
+    if (currentPhaseIndex === 2) { // 3. Ajout de Menace
         let mainScheme = document.getElementById('main-scheme-element'); 
         if (mainScheme) {
-            let val = parseInt(mainScheme.dataset.threat || 0) + 1;
+            let threatToAdd = 1; // Valeur par défaut d'ajout de menace (1 par joueur)
+            let msData = JSON.parse(mainScheme.dataset.cardDataB || mainScheme.dataset.cardDataA || mainScheme.dataset.cardData);
+            
+            // Si la manigance principale définit explicitement une valeur différente
+            if (msData && msData.escalation_threat !== undefined) {
+                threatToAdd = msData.escalation_threat;
+            }
+
+            let accelerationCount = 0;
+            // On vérifie les icônes d'Accélération sur les cartes face visible
+            document.querySelectorAll('.card').forEach(c => {
+                if (c.dataset.cardData && c.dataset.flipped !== 'true') {
+                    let d = JSON.parse(c.dataset.cardData);
+                    
+                    if (d.scheme_acceleration) {
+                        accelerationCount += d.scheme_acceleration;
+                    } 
+                    else if (d.text && (d.text.toLowerCase().includes('[acceleration]') || d.text.toLowerCase().includes('icon-acceleration') || d.text.toLowerCase().includes('accélération'))) {
+                        accelerationCount++;
+                    }
+                }
+            });
+
+            let val = parseInt(mainScheme.dataset.threat || 0) + threatToAdd + accelerationCount;
             mainScheme.dataset.threat = val;
             syncTokenVisuals(mainScheme);
         }
     }
+    if (currentPhaseIndex === 3) { // 4. Activation du Méchant (Carte de Boost automatique)
+        await drawCard('encounter');
+    }
+    if (currentPhaseIndex === 4) { // 5. Cartes Rencontre (Distribution avec détection de l'API pour Hazard)
+        let encounterCardsToDraw = 1;
+        
+        // BONUS: On vérifie s'il y a des cartes avec l'icône Hazard/Aléa face visible
+        document.querySelectorAll('.card').forEach(c => {
+            if (c.dataset.cardData && c.dataset.flipped !== 'true') {
+                let d = JSON.parse(c.dataset.cardData);
+                
+                // L'API MarvelCDB stocke le nombre d'icônes d'Aléa dans la propriété "scheme_hazard"
+                if (d.scheme_hazard) {
+                    encounterCardsToDraw += d.scheme_hazard;
+                } 
+                // Fallback de sécurité dans le texte ou les mots clés
+                else if (d.text && (d.text.toLowerCase().includes('[hazard]') || d.text.toLowerCase().includes('icon-hazard') || d.text.toLowerCase().includes('aléa'))) {
+                    encounterCardsToDraw++;
+                }
+            }
+        });
+        
+        for (let i = 0; i < encounterCardsToDraw; i++) {
+            await drawCard('encounter');
+        }
+    }
+    if (currentPhaseIndex === 5) { // 6. Fin du Round (Redressement Méchant)
+        document.querySelectorAll('.card.exhausted').forEach(card => {
+            if (card.dataset.faction === 'encounter' || card.dataset.faction === 'villain') {
+                card.classList.remove('exhausted');
+            }
+        });
+    }
     saveGameState();
 });
-
-btnDrawHand.addEventListener('click', drawToHandSize);
 
 async function drawToHandSize() {
     if (!currentHeroId && myDeck.length === 0) return;
@@ -687,9 +767,11 @@ async function drawCard(type) {
         putOnBoardAt(cardDOM, x, y + 180, false); 
     } else {
         const rect = boardWrapper.getBoundingClientRect();
-        // Les cartes rencontres apparaissent au centre de l'écran par défaut
-        const spawnX = (rect.width / 2 - boardX) / scale;
-        const spawnY = (rect.height / 2 - boardY) / scale;
+        // Les cartes rencontres apparaissent au centre de l'écran avec un léger décalage pour éviter la superposition parfaite
+        const offsetX = (Math.random() * 60 - 30);
+        const offsetY = (Math.random() * 60 - 30);
+        const spawnX = (rect.width / 2 - boardX + offsetX) / scale;
+        const spawnY = (rect.height / 2 - boardY + offsetY) / scale;
         putOnBoardAt(cardDOM, spawnX, spawnY, true); 
     }
 }
@@ -737,8 +819,18 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     let frontUrl = getImageUrl(cardData);
     let backUrl = explicitBackUrl || defaultBack;
 
+    // Détermination de la menace de départ pour les Manigances Annexes
+    let initThreat = 0;
+    if (cardData.type_code === 'side_scheme') {
+        if (cardData.base_threat !== undefined) {
+            initThreat = cardData.base_threat;
+        } else if (cardData.base_threat_fixed !== undefined) {
+            initThreat = cardData.base_threat_fixed;
+        }
+    }
+
     card.dataset.damage = 0;
-    card.dataset.threat = 0;
+    card.dataset.threat = initThreat;
     card.dataset.generic = 0;
     card.dataset.tough = 0;
     card.dataset.stunned = 0;
@@ -771,6 +863,8 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
 }
 
 function syncTokenVisuals(card) {
+    const isFlipped = card.dataset.flipped === 'true';
+    
     const dmg = parseInt(card.dataset.damage) || 0;
     const thrt = parseInt(card.dataset.threat) || 0;
     const gen = parseInt(card.dataset.generic) || 0;
@@ -779,9 +873,10 @@ function syncTokenVisuals(card) {
     const thrtTok = card.querySelector('.threat-token');
     const genTok = card.querySelector('.generic-token');
     
-    if(dmgTok) { dmgTok.innerText = dmg; dmgTok.classList.toggle('hidden', dmg <= 0); }
-    if(thrtTok) { thrtTok.innerText = thrt; thrtTok.classList.toggle('hidden', thrt <= 0); }
-    if(genTok) { genTok.innerText = gen; genTok.classList.toggle('hidden', gen <= 0); }
+    // On cache les jetons si la carte est face cachée
+    if(dmgTok) { dmgTok.innerText = dmg; dmgTok.classList.toggle('hidden', dmg <= 0 || isFlipped); }
+    if(thrtTok) { thrtTok.innerText = thrt; thrtTok.classList.toggle('hidden', thrt <= 0 || isFlipped); }
+    if(genTok) { genTok.innerText = gen; genTok.classList.toggle('hidden', gen <= 0 || isFlipped); }
     
     let toughCount = parseInt(card.dataset.tough);
     if(isNaN(toughCount)) toughCount = card.dataset.tough === "true" ? 1 : 0;
@@ -795,19 +890,25 @@ function syncTokenVisuals(card) {
     const toughCont = card.querySelector('.tough-container');
     if(toughCont) {
         toughCont.innerHTML = '';
-        for(let i=0; i<toughCount; i++) toughCont.innerHTML += `<div class="status-token" style="background-color:#e67e22; color:white;">TENACE</div>`;
+        if (!isFlipped) {
+            for(let i=0; i<toughCount; i++) toughCont.innerHTML += `<div class="status-token" style="background-color:#e67e22; color:white;">TENACE</div>`;
+        }
     }
     
     const stunnedCont = card.querySelector('.stunned-container');
     if(stunnedCont) {
         stunnedCont.innerHTML = '';
-        for(let i=0; i<stunnedCount; i++) stunnedCont.innerHTML += `<div class="status-token" style="background-color:#8e44ad; color:white;">SONNÉ</div>`;
+        if (!isFlipped) {
+            for(let i=0; i<stunnedCount; i++) stunnedCont.innerHTML += `<div class="status-token" style="background-color:#8e44ad; color:white;">SONNÉ</div>`;
+        }
     }
     
     const confusedCont = card.querySelector('.confused-container');
     if(confusedCont) {
         confusedCont.innerHTML = '';
-        for(let i=0; i<confusedCount; i++) confusedCont.innerHTML += `<div class="status-token" style="background-color:#2ecc71; color:white;">DÉSORIENTÉ</div>`;
+        if (!isFlipped) {
+            for(let i=0; i<confusedCount; i++) confusedCont.innerHTML += `<div class="status-token" style="background-color:#2ecc71; color:white;">DÉSORIENTÉ</div>`;
+        }
     }
 }
 
@@ -821,6 +922,7 @@ function putOnBoardAt(cardElement, x, y, faceDown = false) {
     cardElement.querySelector('.card-front').src = faceDown ? cardElement.dataset.backUrl : cardElement.dataset.frontUrl;
     
     updateCardOrientation(cardElement);
+    syncTokenVisuals(cardElement); // Met à jour l'affichage des jetons à l'apparition
     board.appendChild(cardElement);
 }
 
@@ -1052,9 +1154,18 @@ function makeDraggable(element) {
             } else {
                 const isFlipped = element.dataset.flipped === 'true';
                 const currentImg = isFlipped ? element.dataset.backUrl : element.dataset.frontUrl;
-                let dataToDisplay = element.dataset.cardData;
-                if (isFlipped && element.dataset.cardDataB) dataToDisplay = element.dataset.cardDataB;
-                else if (!isFlipped && element.dataset.cardDataA) dataToDisplay = element.dataset.cardDataA;
+                let dataToDisplay = null;
+                
+                if (isFlipped) {
+                    if (element.dataset.cardDataB) {
+                        dataToDisplay = element.dataset.cardDataB;
+                    } else {
+                        dataToDisplay = JSON.stringify({ name: "Carte face cachée", text: "Les informations de cette carte sont masquées pour le moment." });
+                    }
+                } else {
+                    dataToDisplay = element.dataset.cardDataA || element.dataset.cardData;
+                }
+                
                 updateSidePanel(dataToDisplay, currentImg);
             }
         }
@@ -1094,14 +1205,20 @@ document.getElementById('menu-flip').addEventListener('click', () => {
         const newSrc = willBeFlipped ? targetCard.dataset.backUrl : targetCard.dataset.frontUrl;
         targetCard.querySelector('.card-front').src = newSrc;
         
-        let dataToDisplay = targetCard.dataset.cardData;
-        if (willBeFlipped && targetCard.dataset.cardDataB) dataToDisplay = targetCard.dataset.cardDataB;
-        else if (!willBeFlipped && targetCard.dataset.cardDataA) dataToDisplay = targetCard.dataset.cardDataA;
+        let dataToDisplay = null;
+        if (willBeFlipped) {
+            if (targetCard.dataset.cardDataB) dataToDisplay = targetCard.dataset.cardDataB;
+            else dataToDisplay = JSON.stringify({ name: "Carte face cachée", text: "Les informations de cette carte sont masquées pour le moment." });
+        } else {
+            dataToDisplay = targetCard.dataset.cardDataA || targetCard.dataset.cardData;
+        }
+
         updateSidePanel(dataToDisplay, newSrc);
 
         if (targetCard.id === 'hero-card-element') heroHandSizeSpan.innerText = willBeFlipped ? targetCard.dataset.handSizeB : targetCard.dataset.handSizeA;
         
         updateCardOrientation(targetCard);
+        syncTokenVisuals(targetCard); // Fait apparaître ou disparaître les jetons selon la face visible
     }
     hideAllMenus(); saveGameState();
 });
@@ -1351,7 +1468,7 @@ function shuffleArray(array) {
 // ==========================================
 // 5. SAUVEGARDE ET CHARGEMENT (LOCALSTORAGE)
 // ==========================================
-function saveGameState() {
+function saveGameState(isAutoSave = false) {
     if (resetInProgress) return; 
     
     try {
@@ -1365,6 +1482,7 @@ function saveGameState() {
             
             currentVillainStages, currentVillainStageIndex,
             currentVillainSchemes, currentSchemeIndex,
+            currentPhaseIndex: currentPhaseIndex,
             
             boardPiles: {
                 heroDeck: { hidden: document.getElementById('board-hero-deck').classList.contains('hidden'), left: document.getElementById('board-hero-deck').style.left, top: document.getElementById('board-hero-deck').style.top },
@@ -1397,16 +1515,31 @@ function saveGameState() {
             });
         });
         
-        localStorage.setItem('marvelVTT_save', JSON.stringify(state));
+        const stateString = JSON.stringify(state);
+        localStorage.setItem('marvelVTT_save', stateString);
+
+        // N'alimente l'historique que pour les actions délibérées, pas pendant la sauvegarde auto
+        if (!isUndoing && !resetInProgress && !isAutoSave) {
+            if (stateHistory.length === 0 || stateHistory[stateHistory.length - 1] !== stateString) {
+                stateHistory.push(stateString);
+                if (stateHistory.length > 16) { 
+                    stateHistory.shift(); 
+                }
+                updateUndoButton();
+            }
+        }
+        
     } catch (e) {
         console.error("Erreur lors de la sauvegarde :", e);
     }
 }
 
-setInterval(saveGameState, 3000); 
-window.addEventListener('beforeunload', saveGameState); 
+// On passe "true" à isAutoSave pour éviter de polluer l'historique de ctrl+z
+setInterval(() => saveGameState(true), 3000); 
+
+window.addEventListener('beforeunload', () => saveGameState(true)); 
 document.addEventListener("visibilitychange", () => { 
-    if (document.visibilityState === 'hidden') saveGameState();
+    if (document.visibilityState === 'hidden') saveGameState(true);
 });
 
 function loadGameState() {
@@ -1449,6 +1582,12 @@ function loadGameState() {
             heroHandSizeSpan.innerText = state.heroHandSize;
         }
 
+        if (state.currentPhaseIndex !== undefined) {
+            phases[currentPhaseIndex].classList.remove('active');
+            currentPhaseIndex = state.currentPhaseIndex;
+            if (phases[currentPhaseIndex]) phases[currentPhaseIndex].classList.add('active');
+        }
+
         if (state.boardPiles) {
             let hd = document.getElementById('board-hero-deck');
             let hdd = document.getElementById('board-hero-discard');
@@ -1479,7 +1618,6 @@ function loadGameState() {
         }
 
         if (currentHeroId && btnAddNemesis) btnAddNemesis.classList.remove('hidden');
-        if (myDeck.length > 0 || discardPile.length > 0) btnDrawHand.classList.remove('hidden');
 
         updateDeckCounters();
 
@@ -1521,6 +1659,11 @@ function loadGameState() {
                 console.error("Impossible de charger une carte :", err);
             }
         });
+
+        if (stateHistory.length === 0) {
+            stateHistory.push(saved);
+            updateUndoButton();
+        }
         
     } catch (e) {
         console.error("Erreur de chargement :", e);
