@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "1.1";
+const GAME_VERSION = "1.3";
 
 // --- CONFIGURATION & DOM CONSTANTS ---
 const boardWrapper = document.getElementById('board-wrapper');
@@ -867,6 +867,8 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
 
 function syncTokenVisuals(card) {
     const isFlipped = card.dataset.flipped === 'true';
+    // Si la carte a une face B (Héros, Manigance principale), on ne cache jamais les jetons, peu importe le côté visible.
+    const isFaceDown = isFlipped && !card.dataset.cardDataB;
     
     const dmg = parseInt(card.dataset.damage) || 0;
     const thrt = parseInt(card.dataset.threat) || 0;
@@ -876,10 +878,10 @@ function syncTokenVisuals(card) {
     const thrtTok = card.querySelector('.threat-token');
     const genTok = card.querySelector('.generic-token');
     
-    // On cache les jetons si la carte est face cachée
-    if(dmgTok) { dmgTok.innerText = dmg; dmgTok.classList.toggle('hidden', dmg <= 0 || isFlipped); }
-    if(thrtTok) { thrtTok.innerText = thrt; thrtTok.classList.toggle('hidden', thrt <= 0 || isFlipped); }
-    if(genTok) { genTok.innerText = gen; genTok.classList.toggle('hidden', gen <= 0 || isFlipped); }
+    // On cache les jetons si la carte est réellement face cachée
+    if(dmgTok) { dmgTok.innerText = dmg; dmgTok.classList.toggle('hidden', dmg <= 0 || isFaceDown); }
+    if(thrtTok) { thrtTok.innerText = thrt; thrtTok.classList.toggle('hidden', thrt <= 0 || isFaceDown); }
+    if(genTok) { genTok.innerText = gen; genTok.classList.toggle('hidden', gen <= 0 || isFaceDown); }
     
     let toughCount = parseInt(card.dataset.tough);
     if(isNaN(toughCount)) toughCount = card.dataset.tough === "true" ? 1 : 0;
@@ -893,7 +895,7 @@ function syncTokenVisuals(card) {
     const toughCont = card.querySelector('.tough-container');
     if(toughCont) {
         toughCont.innerHTML = '';
-        if (!isFlipped) {
+        if (!isFaceDown) {
             for(let i=0; i<toughCount; i++) toughCont.innerHTML += `<div class="status-token" style="background-color:#e67e22; color:white;">TENACE</div>`;
         }
     }
@@ -901,7 +903,7 @@ function syncTokenVisuals(card) {
     const stunnedCont = card.querySelector('.stunned-container');
     if(stunnedCont) {
         stunnedCont.innerHTML = '';
-        if (!isFlipped) {
+        if (!isFaceDown) {
             for(let i=0; i<stunnedCount; i++) stunnedCont.innerHTML += `<div class="status-token" style="background-color:#8e44ad; color:white;">SONNÉ</div>`;
         }
     }
@@ -909,7 +911,7 @@ function syncTokenVisuals(card) {
     const confusedCont = card.querySelector('.confused-container');
     if(confusedCont) {
         confusedCont.innerHTML = '';
-        if (!isFlipped) {
+        if (!isFaceDown) {
             for(let i=0; i<confusedCount; i++) confusedCont.innerHTML += `<div class="status-token" style="background-color:#2ecc71; color:white;">DÉSORIENTÉ</div>`;
         }
     }
@@ -1063,8 +1065,10 @@ menuNextVillain.addEventListener('click', async () => {
 
 function makeDraggable(element) {
     let isDragging = false, startX, startY;
+    let lastTouchEnd = 0; // Ajout pour empêcher le double-clic (ghost click) sur tablette
     
     element.onmousedown = (e) => {
+        if (Date.now() - lastTouchEnd < 500) return; // On ignore l'événement souris si un touch vient d'avoir lieu
         if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel')) return;
         if (e.button === 2) return;
         e.preventDefault(); e.stopPropagation();
@@ -1125,6 +1129,7 @@ function makeDraggable(element) {
     }
 
     function closeTouchDragElement(e) {
+        lastTouchEnd = Date.now(); // Marque la fin du touch pour bloquer le mousedown simulé
         document.removeEventListener('touchmove', elementTouchDrag);
         document.removeEventListener('touchend', closeTouchDragElement);
         if (e.changedTouches.length > 0) {
