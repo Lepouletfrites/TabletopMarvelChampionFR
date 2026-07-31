@@ -2,13 +2,18 @@
 const boardWrapper = document.getElementById('board-wrapper');
 const board = document.getElementById('game-board');
 
-// Boutons du menu modal
+// Boutons du menu modal et panneau latéral
 const btnOpenMenu = document.getElementById('btn-open-menu');
 const modalMenu = document.getElementById('modal-menu');
 const modalMenuClose = document.getElementById('modal-menu-close');
 const btnAddNemesis = document.getElementById('btn-add-nemesis');
 const btnResetGame = document.getElementById('btn-reset-game');
 const btnSaveGame = document.getElementById('btn-save-game'); 
+
+const btnToggleSide = document.getElementById('btn-toggle-side');
+const sidePanel = document.getElementById('side-panel');
+const sidePanelOverlay = document.getElementById('side-panel-overlay');
+const btnCloseSide = document.getElementById('btn-close-side');
 
 // Nouveaux éléments du Menu Principal
 const btnLoadCustomDeck = document.getElementById('btn-load-custom-deck');
@@ -79,7 +84,16 @@ let currentSchemeIndex = 0;
 
 // --- GESTION DES JETONS ---
 let activeTokenType = null;
-let activeTokenAction = null; // 'add' ou 'sub'
+let activeTokenAction = null; 
+
+// --- GESTION DES DECKS SECONDAIRES ---
+let heroSecDeck = [];
+let heroSecDiscard = [];
+
+// Support dynamique pour plusieurs decks secondaires du méchant
+let villainSecDecks = [[], [], []];
+let villainSecDiscards = [[], [], []];
+let vSecCount = 0;
 
 const CARD_BACKS = { player: 'assets/player_back.jpg', encounter: 'assets/encounter_back.jpg' };
 const CARD_BACKS_FALLBACK = {
@@ -99,8 +113,23 @@ let boardY = -CENTER_Y + window.innerHeight / 2;
 
 updateCamera();
 
+// Boutons d'interface mobile
+if(btnToggleSide) btnToggleSide.addEventListener('click', () => { sidePanel.classList.add('open'); sidePanelOverlay.classList.add('open'); });
+if(btnCloseSide) btnCloseSide.addEventListener('click', () => { sidePanel.classList.remove('open'); sidePanelOverlay.classList.remove('open'); });
+if(sidePanelOverlay) sidePanelOverlay.addEventListener('click', () => { sidePanel.classList.remove('open'); sidePanelOverlay.classList.remove('open'); });
+
 btnOpenMenu.addEventListener('click', () => modalMenu.classList.remove('hidden'));
 modalMenuClose.addEventListener('click', () => modalMenu.classList.add('hidden'));
+
+// Fermer les modales en cliquant à l'extérieur
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+    });
+    modal.addEventListener('touchstart', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+    });
+});
 
 if (btnSaveGame) {
     btnSaveGame.addEventListener('click', () => {
@@ -194,7 +223,7 @@ btnLoadHero.addEventListener('click', async () => {
 
     modalMenu.classList.add('hidden');
     myDeck = [...heroDef.deck];
-    await setupHero(heroDef.hero_code, heroDef.id);
+    await setupHero(heroDef.hero_code, heroDef.id, heroDef.secondary_deck);
     saveGameState();
 });
 
@@ -233,12 +262,16 @@ btnLoadCustomDeck.addEventListener('click', async () => {
         const heroCode = deckData.hero_code || deckData.investigator_code;
         
         let dbHeroId = null;
+        let dbSecondaryDeck = null;
         if (typeof MARVEL_DB !== 'undefined') {
             const match = MARVEL_DB.heroes.find(h => h.hero_code.replace(/[ab]$/,'') === heroCode.replace(/[ab]$/,''));
-            if (match) dbHeroId = match.id;
+            if (match) {
+                dbHeroId = match.id;
+                dbSecondaryDeck = match.secondary_deck;
+            }
         }
 
-        await setupHero(heroCode, dbHeroId);
+        await setupHero(heroCode, dbHeroId, dbSecondaryDeck);
         
         btnLoadCustomDeck.disabled = false;
         btnLoadCustomDeck.innerText = "Charger via URL";
@@ -252,7 +285,7 @@ btnLoadCustomDeck.addEventListener('click', async () => {
     }
 });
 
-async function setupHero(heroBaseCode, dbHeroId) {
+async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     let coreCode = heroBaseCode.replace(/[ab]$/, '');
     
     let frontData = await fetchAPI(coreCode + 'a') || await fetchAPI(coreCode);
@@ -280,9 +313,9 @@ async function setupHero(heroBaseCode, dbHeroId) {
     heroDOM.dataset.handSizeA = startFace.hand_size || 5;
     heroDOM.dataset.handSizeB = altFace ? (altFace.hand_size || 6) : 6;
     
-    const rect = boardWrapper.getBoundingClientRect();
-    const spawnX = (rect.width / 2 - boardX) / scale;
-    const spawnY = (rect.height / 2 - boardY) / scale;
+    // POSITIONNEMENT ABSOLU POUR ALIGNEMENT PARFAIT
+    const spawnX = CENTER_X;
+    const spawnY = CENTER_Y + 300; // Très bas pour l'espacement
     
     putOnBoardAt(heroDOM, spawnX, spawnY, false);
 
@@ -290,6 +323,20 @@ async function setupHero(heroBaseCode, dbHeroId) {
     heroHpInput.value = startFace.health || 10;
     heroHandSizeSpan.innerText = heroDOM.dataset.handSizeA;
     
+    // GESTION DECK SECONDAIRE HÉROS
+    if (secondaryDeckData) {
+        heroSecDeck = [...secondaryDeckData];
+        shuffleArray(heroSecDeck);
+        let hd = document.getElementById('board-hero-deck');
+        let hdd = document.getElementById('board-hero-discard');
+        hd.classList.remove('hidden');
+        hdd.classList.remove('hidden');
+        hd.style.left = (spawnX + 180) + "px";
+        hd.style.top = (spawnY) + "px";
+        hdd.style.left = (spawnX + 320) + "px";
+        hdd.style.top = (spawnY) + "px";
+    }
+
     if (currentHeroId && btnAddNemesis) {
         btnAddNemesis.classList.remove('hidden');
     }
@@ -314,9 +361,9 @@ if (btnAddNemesis) {
         btnAddNemesis.disabled = true;
 
         try {
-            const rect = boardWrapper.getBoundingClientRect();
-            const spawnX = (rect.width / 2 - boardX) / scale;
-            const spawnY = (rect.height / 2 - boardY) / scale;
+            // Spawn au centre parfait
+            const spawnX = CENTER_X;
+            const spawnY = CENTER_Y;
 
             if (heroDef.nemesis.obligation) encounterDeck.push(heroDef.nemesis.obligation);
 
@@ -331,7 +378,8 @@ if (btnAddNemesis) {
                     if (cardData.type_code === 'minion') minionDeployed = true;
 
                     const dom = buildCardDOM(cardData);
-                    putOnBoardAt(dom, spawnX + 150 + (Math.random() * 50), spawnY - 100 + (Math.random() * 50), false);
+                    // Placement légèrement décalé au centre
+                    putOnBoardAt(dom, spawnX + (Math.random() * 100 - 50), spawnY + (Math.random() * 100 - 50), false);
                 } else {
                     encounterDeck.push(cardData.code); 
                 }
@@ -367,15 +415,15 @@ btnLoadVillain.addEventListener('click', async () => {
     currentVillainSchemes = villainDef.schemes;
     currentSchemeIndex = 0;
 
-    const rect = boardWrapper.getBoundingClientRect();
-    const spawnX = (rect.width / 2 - boardX) / scale;
-    const spawnY = (rect.height / 2 - boardY) / scale;
+    // POSITIONNEMENT ABSOLU POUR ALIGNEMENT PARFAIT
+    const spawnX = CENTER_X;
+    const spawnY = CENTER_Y - 300; // Très haut pour l'espacement
 
     if (currentVillainStages.length > currentVillainStageIndex) {
         let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
         if (vData) {
             let vDom = buildCardDOM(vData);
-            putOnBoardAt(vDom, spawnX, spawnY - 145, false);
+            putOnBoardAt(vDom, spawnX, spawnY, false);
         }
     }
 
@@ -389,12 +437,39 @@ btnLoadVillain.addEventListener('click', async () => {
             sDom.dataset.cardDataA = JSON.stringify(frontData);
             if (backData) sDom.dataset.cardDataB = JSON.stringify(backData);
             sDom.id = `main-scheme-element`;
-            putOnBoardAt(sDom, spawnX - 250, spawnY - 150, false);
+            putOnBoardAt(sDom, spawnX - 250, spawnY, false);
         }
+    }
+    
+    // GESTION MULTIPLES DECKS SECONDAIRES MÉCHANT
+    vSecCount = 0;
+    villainSecDecks = [[], [], []];
+    villainSecDiscards = [[], [], []];
+    
+    function deployVillainSecDeck(deckArray, title) {
+        if (vSecCount >= 3) return; // Limite à 3 decks
+        villainSecDecks[vSecCount] = [...deckArray];
+        shuffleArray(villainSecDecks[vSecCount]);
+        
+        let vd = document.getElementById('board-villain-deck-' + vSecCount);
+        let vdd = document.getElementById('board-villain-discard-' + vSecCount);
+        vd.classList.remove('hidden');
+        vdd.classList.remove('hidden');
+        
+        vd.style.left = (spawnX + 180 + (vSecCount * 280)) + "px";
+        vd.style.top = (spawnY) + "px";
+        vdd.style.left = (spawnX + 320 + (vSecCount * 280)) + "px";
+        vdd.style.top = (spawnY) + "px";
+        
+        if (title) vd.innerHTML = `${title}<br><span id="board-villain-deck-count-${vSecCount}">0</span>`;
+        vSecCount++;
+    }
+
+    if (villainDef.secondary_deck) {
+        deployVillainSecDeck(villainDef.secondary_deck, "DECK<br>SPÉCIAL");
     }
 
     encounterDeck = [...villainDef.base_deck];
-    
     if (diff === 'standard' || diff === 'expert') encounterDeck.push(...MARVEL_DB.difficulty.standard);
     if (diff === 'expert') encounterDeck.push(...MARVEL_DB.difficulty.expert);
     
@@ -402,14 +477,18 @@ btnLoadVillain.addEventListener('click', async () => {
     const selectedMods = Array.from(document.querySelectorAll('.mod-checkbox:checked')).map(cb => cb.value);
     
     let modularsToLoad = new Set(selectedMods);
-    
     if (useDefaultMod && villainDef.default_modulars) {
         villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
     }
 
     modularsToLoad.forEach(mId => {
         let modDef = MARVEL_DB.modulars.find(m => m.id === mId);
-        if (modDef) encounterDeck.push(...modDef.cards);
+        if (modDef) {
+            if (modDef.cards && modDef.cards.length > 0) encounterDeck.push(...modDef.cards);
+            if (modDef.secondary_deck) {
+                deployVillainSecDeck(modDef.secondary_deck, modDef.name.substring(0, 15).toUpperCase());
+            }
+        }
     });
 
     shuffleArray(encounterDeck);
@@ -461,7 +540,6 @@ function updateTokenBarUI() {
 function applyTokenModeToCard(card, type, action) {
     if (card.classList.contains('in-hand')) return; 
     
-    // Support des anciennes sauvegardes ("true"/"false" vs chiffres)
     let val = parseInt(card.dataset[type]);
     if (isNaN(val)) val = card.dataset[type] === "true" ? 1 : 0; 
     
@@ -520,10 +598,26 @@ async function drawToHandSize() {
 
 deckElement.addEventListener('click', () => { drawCard('player'); saveGameState(); });
 encounterDeckElement.addEventListener('click', () => { drawCard('encounter'); saveGameState(); });
+document.getElementById('board-hero-deck').addEventListener('click', () => { drawCard('hero-sec'); saveGameState(); });
+
+for (let i = 0; i < 3; i++) {
+    let d = document.getElementById('board-villain-deck-' + i);
+    if (d) d.addEventListener('click', () => { drawCard('villain-sec-' + i); saveGameState(); });
+}
 
 async function drawCard(type) {
-    const pile = type === 'player' ? myDeck : encounterDeck;
-    if (pile.length === 0) return;
+    let pile;
+    let vIndex = -1;
+    
+    if (type === 'player') pile = myDeck;
+    else if (type === 'encounter') pile = encounterDeck;
+    else if (type === 'hero-sec') pile = heroSecDeck;
+    else if (type.startsWith('villain-sec-')) {
+        vIndex = parseInt(type.split('-')[2]);
+        pile = villainSecDecks[vIndex];
+    }
+    
+    if (!pile || pile.length === 0) return;
 
     const code = pile.pop();
     updateDeckCounters();
@@ -534,8 +628,19 @@ async function drawCard(type) {
     
     if (type === 'player') {
         putInHand(cardDOM);
+    } else if (type === 'hero-sec') {
+        let deckDom = document.getElementById('board-hero-deck');
+        let x = parseFloat(deckDom.style.left) || CENTER_X;
+        let y = parseFloat(deckDom.style.top) || CENTER_Y;
+        putOnBoardAt(cardDOM, x, y + 180, false); 
+    } else if (type.startsWith('villain-sec-')) {
+        let deckDom = document.getElementById('board-villain-deck-' + vIndex);
+        let x = parseFloat(deckDom.style.left) || CENTER_X;
+        let y = parseFloat(deckDom.style.top) || CENTER_Y;
+        putOnBoardAt(cardDOM, x, y + 180, false); 
     } else {
         const rect = boardWrapper.getBoundingClientRect();
+        // Les cartes rencontres apparaissent au centre de l'écran par défaut
         const spawnX = (rect.width / 2 - boardX) / scale;
         const spawnY = (rect.height / 2 - boardY) / scale;
         putOnBoardAt(cardDOM, spawnX, spawnY, true); 
@@ -549,6 +654,16 @@ function updateDeckCounters() {
     encounterDeckCountText.innerText = encounterDeck.length;
     encounterDeckElement.classList.toggle('hidden', encounterDeck.length === 0);
     encounterDiscardCountText.innerText = encounterDiscardPile.length;
+    
+    document.getElementById('board-hero-deck-count').innerText = heroSecDeck.length;
+    document.getElementById('board-hero-discard-count').innerText = heroSecDiscard.length;
+    
+    for (let i = 0; i < 3; i++) {
+        let d = document.getElementById('board-villain-deck-count-' + i);
+        let dd = document.getElementById('board-villain-discard-count-' + i);
+        if (d && villainSecDecks[i]) d.innerText = villainSecDecks[i].length;
+        if (dd && villainSecDiscards[i]) dd.innerText = villainSecDiscards[i].length;
+    }
 }
 
 function updateCardOrientation(card) {
@@ -685,15 +800,22 @@ function putInHand(cardElement) {
 function discardCard(cardElement, forcedPile = null) {
     const code = cardElement.dataset.code; const faction = cardElement.dataset.faction;
     cardElement.remove();
-    const isEncounter = forcedPile === 'encounter' || (!forcedPile && (faction === 'encounter' || faction === 'villain'));
-    if (isEncounter) encounterDiscardPile.push(code); else discardPile.push(code);
+    
+    if (forcedPile === 'hero-sec') heroSecDiscard.push(code);
+    else if (forcedPile && forcedPile.startsWith('villain-sec-discard-')) {
+        let idx = parseInt(forcedPile.split('-')[3]);
+        if(!isNaN(idx)) villainSecDiscards[idx].push(code);
+    }
+    else if (forcedPile === 'encounter' || (!forcedPile && (faction === 'encounter' || faction === 'villain'))) encounterDiscardPile.push(code); 
+    else discardPile.push(code);
+    
     updateDeckCounters();
 }
 
 // --- INTERACTIONS DE CARTES & DRAG & DROP ---
 function setupCardInteractions(card) {
     card.addEventListener('dblclick', () => {
-        if (activeTokenType) return; // BLOQUE L'INCLINAISON SI MODE JETON ACTIF
+        if (activeTokenType) return; 
         if (!card.classList.contains('in-hand')) card.classList.toggle('exhausted');
     });
 
@@ -702,7 +824,7 @@ function setupCardInteractions(card) {
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTap;
         if (tapLength < 300 && tapLength > 0) {
-            if (activeTokenType) return; // BLOQUE L'INCLINAISON SI MODE JETON ACTIF
+            if (activeTokenType) return; 
             if (!card.classList.contains('in-hand')) card.classList.toggle('exhausted');
             e.preventDefault();
         }
@@ -867,7 +989,11 @@ function makeDraggable(element) {
             element.style.visibility = '';
             element.classList.remove('is-dragging-hud', 'is-dragging-board');
             
-            if (dropTarget && dropTarget.closest('#discard-pile')) discardCard(element, 'player');
+            if (dropTarget && dropTarget.closest('#board-hero-discard')) discardCard(element, 'hero-sec');
+            else if (dropTarget && dropTarget.closest('.board-pile[data-pile^="villain-sec-discard-"]')) {
+                discardCard(element, dropTarget.closest('.board-pile').dataset.pile);
+            }
+            else if (dropTarget && dropTarget.closest('#discard-pile')) discardCard(element, 'player');
             else if (dropTarget && dropTarget.closest('#encounter-discard-pile')) discardCard(element, 'encounter');
             else if (dropTarget && dropTarget.closest('#hand-area')) putInHand(element);
             else if (element.parentNode !== board) putOnBoardAt(element, (clientX - boardX) / scale, (clientY - boardY) / scale, element.dataset.flipped === 'true');
@@ -968,7 +1094,10 @@ document.querySelectorAll('.pile-element').forEach(pile => {
     pile.addEventListener('contextmenu', (e) => {
         e.preventDefault(); e.stopPropagation(); hideAllMenus();
         targetPileType = pile.dataset.pile;
-        menuPileShuffleIntoDeck.style.display = (targetPileType === 'player-discard' || targetPileType === 'encounter-discard') ? 'block' : 'none';
+        
+        const isDiscard = targetPileType.includes('discard');
+        menuPileShuffleIntoDeck.style.display = isDiscard ? 'block' : 'none';
+        
         pileContextMenu.classList.remove('hidden');
         
         let clientX = e.clientX || (e.touches && e.touches.length > 0 ? e.touches[0].clientX : 0);
@@ -986,6 +1115,15 @@ menuPileShuffleIntoDeck.addEventListener('click', () => {
     hideAllMenus();
     if (targetPileType === 'player-discard') { myDeck = myDeck.concat(discardPile); discardPile = []; shuffleArray(myDeck); }
     else if (targetPileType === 'encounter-discard') { encounterDeck = encounterDeck.concat(encounterDiscardPile); encounterDiscardPile = []; shuffleArray(encounterDeck); }
+    else if (targetPileType === 'hero-sec-discard') { heroSecDeck = heroSecDeck.concat(heroSecDiscard); heroSecDiscard = []; shuffleArray(heroSecDeck); }
+    else if (targetPileType.startsWith('villain-sec-discard-')) { 
+        let idx = parseInt(targetPileType.split('-')[3]);
+        if(!isNaN(idx)) {
+            villainSecDecks[idx] = villainSecDecks[idx].concat(villainSecDiscards[idx]); 
+            villainSecDiscards[idx] = []; 
+            shuffleArray(villainSecDecks[idx]); 
+        }
+    }
     updateDeckCounters(); saveGameState();
 });
 
@@ -993,26 +1131,58 @@ document.getElementById('menu-pile-inspect').addEventListener('click', () => { h
 document.getElementById('menu-pile-shuffle').addEventListener('click', () => { hideAllMenus(); let pile = getPileArray(targetPileType); if (pile) shuffleArray(pile); saveGameState(); });
 
 function getPileArray(pileType) {
-    switch(pileType) { case 'player-deck': return myDeck; case 'player-discard': return discardPile; case 'encounter-deck': return encounterDeck; case 'encounter-discard': return encounterDiscardPile; default: return null; }
+    switch(pileType) { 
+        case 'player-deck': return myDeck; 
+        case 'player-discard': return discardPile; 
+        case 'encounter-deck': return encounterDeck; 
+        case 'encounter-discard': return encounterDiscardPile; 
+        case 'hero-sec-deck': return heroSecDeck;
+        case 'hero-sec-discard': return heroSecDiscard;
+        default: 
+            if (pileType.startsWith('villain-sec-deck-')) return villainSecDecks[parseInt(pileType.split('-')[3])];
+            if (pileType.startsWith('villain-sec-discard-')) return villainSecDiscards[parseInt(pileType.split('-')[3])];
+            return null; 
+    }
 }
 
 async function openInspectModal(pileType) {
     const pile = getPileArray(pileType); if (!pile) return;
     modalCardsContainer.innerHTML = 'Chargement en cours...'; modalInspect.classList.remove('hidden');
-    const pileNames = { 'player-deck': 'Pioche Joueur', 'player-discard': 'Défausse Joueur', 'encounter-deck': 'Pioche Rencontre', 'encounter-discard': 'Défausse Rencontre' };
-    modalTitle.innerText = `${pileNames[pileType]} (${pile.length} cartes)`;
+    
+    let pileName = "Pile";
+    if(pileType === 'player-deck') pileName = "Pioche Joueur";
+    else if(pileType === 'player-discard') pileName = "Défausse Joueur";
+    else if(pileType === 'encounter-deck') pileName = "Pioche Rencontre";
+    else if(pileType === 'encounter-discard') pileName = "Défausse Rencontre";
+    else if(pileType === 'hero-sec-deck') pileName = "Deck Spécial (Héros)";
+    else if(pileType === 'hero-sec-discard') pileName = "Défausse Spéciale (Héros)";
+    else if(pileType.startsWith('villain-sec')) pileName = "Deck Spécial (Méchant)";
+
+    modalTitle.innerText = `${pileName} (${pile.length} cartes)`;
     modalCardsContainer.innerHTML = '';
     if (pile.length === 0) { modalCardsContainer.innerHTML = '<p>Cette pile est vide.</p>'; return; }
     
     for (let i = pile.length - 1; i >= 0; i--) {
         const code = pile[i]; const cardData = await fetchAPI(code); if (!cardData) continue;
         const item = document.createElement('div'); item.classList.add('inspect-card-item');
-        item.innerHTML = `<img src="${getImageUrl(cardData)}" alt="${cardData.name}"/><button>Piocher</button>`;
+        
+        item.innerHTML = `<img src="${getImageUrl(cardData)}" alt="${cardData.name}" title="Cliquer pour afficher dans le panneau de zoom"/><button style="margin-top: 5px; width: 100%;">Mettre en jeu</button>`;
+        
+        item.querySelector('img').addEventListener('click', () => {
+            updateSidePanel(JSON.stringify(cardData), getImageUrl(cardData));
+            if (window.innerWidth <= 768) {
+                document.getElementById('side-panel').classList.add('open');
+                document.getElementById('side-panel-overlay').classList.add('open');
+            }
+        });
+
         item.querySelector('button').addEventListener('click', () => {
             pile.splice(i, 1); updateDeckCounters();
             const cardDOM = buildCardDOM(cardData);
             
             if (pileType.includes('player')) putInHand(cardDOM); 
+            else if (pileType === 'hero-sec-deck' || pileType === 'hero-sec-discard') putOnBoardAt(cardDOM, CENTER_X, CENTER_Y, false);
+            else if (pileType === 'villain-sec-deck' || pileType === 'villain-sec-discard') putOnBoardAt(cardDOM, CENTER_X, CENTER_Y, false);
             else putOnBoardAt(cardDOM, CENTER_X, CENTER_Y, false); 
             
             modalInspect.classList.add('hidden'); saveGameState();
@@ -1140,12 +1310,30 @@ function saveGameState() {
     try {
         const state = {
             myDeck, discardPile, encounterDeck, encounterDiscardPile,
+            heroSecDeck, heroSecDiscard, 
+            villainSecDecks, villainSecDiscards,
             currentHeroId, boardX, boardY, scale,
             heroHp: heroHpInput.value,
             heroHandSize: heroHandSizeSpan.innerText,
             
             currentVillainStages, currentVillainStageIndex,
             currentVillainSchemes, currentSchemeIndex,
+            
+            boardPiles: {
+                heroDeck: { hidden: document.getElementById('board-hero-deck').classList.contains('hidden'), left: document.getElementById('board-hero-deck').style.left, top: document.getElementById('board-hero-deck').style.top },
+                heroDiscard: { hidden: document.getElementById('board-hero-discard').classList.contains('hidden'), left: document.getElementById('board-hero-discard').style.left, top: document.getElementById('board-hero-discard').style.top },
+                villainDecks: villainSecDecks.map((_, i) => ({
+                    hidden: document.getElementById('board-villain-deck-'+i).classList.contains('hidden'),
+                    left: document.getElementById('board-villain-deck-'+i).style.left,
+                    top: document.getElementById('board-villain-deck-'+i).style.top,
+                    name: document.getElementById('board-villain-deck-'+i).innerHTML
+                })),
+                villainDiscards: villainSecDiscards.map((_, i) => ({
+                    hidden: document.getElementById('board-villain-discard-'+i).classList.contains('hidden'),
+                    left: document.getElementById('board-villain-discard-'+i).style.left,
+                    top: document.getElementById('board-villain-discard-'+i).style.top
+                }))
+            },
             
             cards: []
         };
@@ -1188,6 +1376,12 @@ function loadGameState() {
         discardPile = state.discardPile || [];
         encounterDeck = state.encounterDeck || [];
         encounterDiscardPile = state.encounterDiscardPile || [];
+        
+        heroSecDeck = state.heroSecDeck || [];
+        heroSecDiscard = state.heroSecDiscard || [];
+        villainSecDecks = state.villainSecDecks || [[], [], []];
+        villainSecDiscards = state.villainSecDiscards || [[], [], []];
+        
         currentHeroId = state.currentHeroId || null;
         
         currentVillainStages = state.currentVillainStages || [];
@@ -1199,7 +1393,6 @@ function loadGameState() {
         boardY = state.boardY || (-CENTER_Y + window.innerHeight / 2);
         scale = state.scale || 1;
         updateCamera();
-        updateDeckCounters();
 
         if (state.heroHp) {
             heroHpInput.value = state.heroHp;
@@ -1209,10 +1402,41 @@ function loadGameState() {
             heroHandSizeSpan.innerText = state.heroHandSize;
         }
 
+        if (state.boardPiles) {
+            let hd = document.getElementById('board-hero-deck');
+            let hdd = document.getElementById('board-hero-discard');
+            if(state.boardPiles.heroDeck && hd) { hd.classList.toggle('hidden', state.boardPiles.heroDeck.hidden); hd.style.left = state.boardPiles.heroDeck.left; hd.style.top = state.boardPiles.heroDeck.top; }
+            if(state.boardPiles.heroDiscard && hdd) { hdd.classList.toggle('hidden', state.boardPiles.heroDiscard.hidden); hdd.style.left = state.boardPiles.heroDiscard.left; hdd.style.top = state.boardPiles.heroDiscard.top; }
+            
+            if (state.boardPiles.villainDecks) {
+                state.boardPiles.villainDecks.forEach((vd, i) => {
+                    let dom = document.getElementById('board-villain-deck-'+i);
+                    if (dom && vd) {
+                        dom.classList.toggle('hidden', vd.hidden);
+                        dom.style.left = vd.left;
+                        dom.style.top = vd.top;
+                        if (vd.name) dom.innerHTML = vd.name;
+                    }
+                });
+            }
+            if (state.boardPiles.villainDiscards) {
+                state.boardPiles.villainDiscards.forEach((vdd, i) => {
+                    let dom = document.getElementById('board-villain-discard-'+i);
+                    if (dom && vdd) {
+                        dom.classList.toggle('hidden', vdd.hidden);
+                        dom.style.left = vdd.left;
+                        dom.style.top = vdd.top;
+                    }
+                });
+            }
+        }
+
         if (currentHeroId && btnAddNemesis) btnAddNemesis.classList.remove('hidden');
         if (myDeck.length > 0 || discardPile.length > 0) btnDrawHand.classList.remove('hidden');
 
-        board.innerHTML = '';
+        updateDeckCounters();
+
+        board.querySelectorAll('.card').forEach(c => c.remove());
         handArea.innerHTML = '';
         
         state.cards.forEach(cardState => {

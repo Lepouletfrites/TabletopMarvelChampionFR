@@ -43,7 +43,25 @@
         </div>
 
         <div id="board-wrapper">
-            <div id="game-board"></div>
+            <div id="game-board">
+                <!-- PILES SECONDAIRES SUR LE PLATEAU (Affichées dynamiquement) -->
+                <div id="board-hero-deck" class="board-pile pile-element hidden" data-pile="hero-sec-deck">
+                    DECK<br>SPÉCIAL<br><span id="board-hero-deck-count">0</span>
+                </div>
+                <div id="board-hero-discard" class="board-pile pile-element hidden" data-pile="hero-sec-discard">
+                    DÉFAUSSE<br>SPÉCIALE<br><span id="board-hero-discard-count">0</span>
+                </div>
+                
+                <!-- On prévoit 3 emplacements pour des decks secondaires multiples côté méchant -->
+                <div id="board-villain-deck-0" class="board-pile pile-element hidden" data-pile="villain-sec-deck-0">DECK<br>SPÉCIAL<br><span id="board-villain-deck-count-0">0</span></div>
+                <div id="board-villain-discard-0" class="board-pile pile-element hidden" data-pile="villain-sec-discard-0">DÉFAUSSE<br>SPÉCIALE<br><span id="board-villain-discard-count-0">0</span></div>
+
+                <div id="board-villain-deck-1" class="board-pile pile-element hidden" data-pile="villain-sec-deck-1">DECK<br>SPÉCIAL<br><span id="board-villain-deck-count-1">0</span></div>
+                <div id="board-villain-discard-1" class="board-pile pile-element hidden" data-pile="villain-sec-discard-1">DÉFAUSSE<br>SPÉCIALE<br><span id="board-villain-discard-count-1">0</span></div>
+
+                <div id="board-villain-deck-2" class="board-pile pile-element hidden" data-pile="villain-sec-deck-2">DECK<br>SPÉCIAL<br><span id="board-villain-deck-count-2">0</span></div>
+                <div id="board-villain-discard-2" class="board-pile pile-element hidden" data-pile="villain-sec-discard-2">DÉFAUSSE<br>SPÉCIALE<br><span id="board-villain-discard-count-2">0</span></div>
+            </div>
             
             <div id="phase-panel">
                 <h3>PHASES DE JEU</h3>

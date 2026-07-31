@@ -1,6 +1,5 @@
 // ==========================================
 // BASE DE DONNÉES LOCALE - MARVEL CHAMPIONS
-// CONTENU : BOÎTE DE BASE (CORE SET)
 // ==========================================
 
 const MARVEL_DB = {
@@ -54,7 +53,18 @@ const MARVEL_DB = {
             deck: ['01039a', '01040', '01041', '01041', '01042', '01042', '01043', '01044', '01044', '01045', '01045', '01046', '01047', '01048', '01049'],
             nemesis: {
                 obligation: "01183",
-                set: ["01184", "01185", "01185", "01185"] // Le Fouet
+                set: ["01184", "01185", "01185", "01185"]
+            }
+        },
+        {
+            id: "doctor_strange",
+            name: "Doctor Strange - Protection (Préconstruit + Deck Invocation)",
+            hero_code: "09001a",
+            deck: ["09001a", "09002", "09003", "09004", "09004", "09005", "09005", "09006", "09007", "09007", "09008", "09009", "09010", "09011", "09011", "09012", "09012", "09013", "09013", "09014", "09015", "09016", "09017", "09017", "09018", "09018", "09019", "09019", "09020", "09020", "09021", "09022", "09022", "09022", "09023", "09024", "09025", "09026", "09027", "09028"],
+            secondary_deck: ["09032", "09033", "09034", "09035", "09036"], // Le Deck Invocation
+            nemesis: {
+                obligation: "09029",
+                set: ["09030", "09031", "09031", "09031"]
             }
         }
     ],
@@ -84,6 +94,14 @@ const MARVEL_DB = {
             schemes: ["01137", "01138", "01139"],         
             default_modulars: ["under_attack"],
             base_deck: ["01140", "01141", "01141", "01141", "01142", "01142", "01143", "01143", "01144", "01144", "01145", "01145", "01146", "01146", "01147", "01147", "01148", "01148"]
+        },
+        {
+            id: "thanos",
+            name: "Thanos (L'Ombre du Titan Fou)",
+            stages: ["21058", "21059", "21060"], 
+            schemes: ["21061", "21062"],         
+            default_modulars: ["infinity_gauntlet"], // Utilise le set modulaire qui apporte son deck secondaire
+            base_deck: ["21063", "21063", "21064", "21064", "21065", "21065", "21066", "21067", "21067", "21068", "21068", "21069", "21069"]
         }
     ],
 
@@ -113,6 +131,12 @@ const MARVEL_DB = {
             id: "doomsday_chair",
             name: "Le Siège de l'Apocalypse",
             cards: ["01156", "01157", "01158", "01158", "01159", "01159"]
+        },
+        {
+            id: "infinity_gauntlet",
+            name: "Gant de l'Infini",
+            cards: [], // Aucune carte ne va dans le deck rencontre normal
+            secondary_deck: ["21073", "21074", "21075", "21076", "21077", "21078"] // Elles vont toutes dans ce deck spécial
         }
     ],
 
