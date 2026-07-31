@@ -99,10 +99,10 @@ const MARVEL_DB = {
         {
             id: "thanos",
             name: "Thanos (L'Ombre du Titan Fou)",
-            stages: ["21058", "21059", "21060"], 
-            schemes: ["21061", "21062"],         
-            default_modulars: ["infinity_gauntlet"], // Utilise le set modulaire qui apporte son deck secondaire
-            base_deck: ["21063", "21063", "21064", "21064", "21065", "21065", "21066", "21067", "21067", "21068", "21068", "21069", "21069"]
+            stages: ["21111", "21112", "21113"], 
+            schemes: ["21114", "21115"],         
+            default_modulars: ["infinity_gauntlet","children_of_thanos","black_order"], // Utilise le set modulaire qui apporte son deck secondaire
+            base_deck: ["21116", "21117", "21118", "21119", "21119", "21120", "21120", "21121", "21121", "21122", "21122", "21123", "21123", "21124"]
         }
     ],
 
@@ -133,11 +133,22 @@ const MARVEL_DB = {
             name: "Le Siège de l'Apocalypse",
             cards: ["01183", "01183", "01184", "01185", "01185"]
         },
+	{
+            id: "black_order",
+            name: "L'ordre noir",
+            cards: ["21085", "21086", "21087", "21088"]
+        },
         {
             id: "infinity_gauntlet",
             name: "Gant de l'Infini",
-            cards: [], // Aucune carte ne va dans le deck rencontre normal
-            secondary_deck: ["21073", "21074", "21075", "21076", "21077", "21078"] // Elles vont toutes dans ce deck spécial
+            cards: ["21129"], // Aucune carte ne va dans le deck rencontre normal
+		start_on_board: ["21129"],
+            secondary_deck: ["21130", "21131", "21132", "21133", "21134", "21135"] // Elles vont toutes dans ce deck spécial
+        },
+	{
+            id: "children_of_thanos",
+            name: "Enfant de thanos",
+            cards: ["21125", "21126", "21127", "21128", "21128"]
         }
     ],
 
