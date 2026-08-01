@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21' # <-- CORRECTION ICI : Java 21 pour Capacitor 6
 
       - name: Initialize Node.js & Install Dependencies
         run: |
@@ -33,11 +33,11 @@ jobs:
 
       - name: Prepare Web Files & Sync Capacitor
         run: |
-          # 1. On regroupe tes fichiers web dans un dossier 'www' propre
+          # On regroupe tes fichiers web dans un dossier 'www'
           mkdir -p www
           rsync -av --exclude='www' --exclude='android' --exclude='node_modules' --exclude='.git' --exclude='.github' ./ www/
           
-          # 2. On crée le fichier de configuration Capacitor proprement
+          # On crée le fichier de configuration Capacitor
           echo '{
             "appId": "com.marveldeckbuilder.app",
             "appName": "Marvel Champions",
@@ -45,7 +45,7 @@ jobs:
             "bundledWebRuntime": false
           }' > capacitor.config.json
           
-          # 3. On génère Android et on synchronise tous les fichiers
+          # On génère Android
           npx cap add android
           npx cap sync android
 
@@ -53,7 +53,8 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          # CORRECTION ICI : --no-daemon évite les crashs de mémoire sur GitHub
+          ./gradlew assembleDebug --no-daemon 
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
