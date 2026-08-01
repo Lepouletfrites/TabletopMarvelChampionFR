@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "1.3";
+const GAME_VERSION = "1.7";
 
 // --- CONFIGURATION & DOM CONSTANTS ---
 const boardWrapper = document.getElementById('board-wrapper');
@@ -61,6 +61,28 @@ menuPileShuffleIntoDeck.className = 'menu-item';
 menuPileShuffleIntoDeck.id = 'menu-pile-shuffle-into-deck';
 menuPileShuffleIntoDeck.innerText = 'Remélanger dans la pioche';
 pileContextMenu.appendChild(menuPileShuffleIntoDeck);
+
+// Ajout des boutons pour l'Accélération
+const menuAddAccel = document.getElementById('menu-add-accel');
+const menuSubAccel = document.getElementById('menu-sub-accel');
+
+menuAddAccel.addEventListener('click', () => {
+    if (targetCard) {
+        targetCard.dataset.acceleration = (parseInt(targetCard.dataset.acceleration) || 0) + 1;
+        syncTokenVisuals(targetCard);
+        saveGameState();
+    }
+    hideAllMenus();
+});
+
+menuSubAccel.addEventListener('click', () => {
+    if (targetCard) {
+        targetCard.dataset.acceleration = Math.max(0, (parseInt(targetCard.dataset.acceleration) || 0) - 1);
+        syncTokenVisuals(targetCard);
+        saveGameState();
+    }
+    hideAllMenus();
+});
 
 // --- HÉROS ET PHASES DE JEU ---
 const heroTracker = document.getElementById('hero-tracker');
@@ -452,7 +474,11 @@ if (btnAddNemesis) {
 // --- DEPLOYER LE MÉCHANT ET LE SCÉNARIO ---
 btnLoadVillain.addEventListener('click', async () => {
     const vId = villainSelect.value;
-    const diff = difficultySelect.value;
+    
+    // Récupération des difficultés cochées
+    const stdDiff = document.querySelector('input[name="diff-std"]:checked').value;
+    const expDiff = document.querySelector('input[name="diff-exp"]:checked').value;
+    const isExpert = (expDiff !== 'none');
 
     if (!vId) return;
     modalMenu.classList.add('hidden');
@@ -460,7 +486,7 @@ btnLoadVillain.addEventListener('click', async () => {
     const villainDef = MARVEL_DB.villains.find(v => v.id === vId);
     
     currentVillainStages = villainDef.stages;
-    currentVillainStageIndex = (diff === 'expert') ? 1 : 0; 
+    currentVillainStageIndex = isExpert ? 1 : 0; 
     currentVillainSchemes = villainDef.schemes;
     currentSchemeIndex = 0;
 
@@ -520,8 +546,23 @@ btnLoadVillain.addEventListener('click', async () => {
     }
 
     encounterDeck = [...villainDef.base_deck];
-    if (diff === 'standard' || diff === 'expert') encounterDeck.push(...MARVEL_DB.difficulty.standard);
-    if (diff === 'expert') encounterDeck.push(...MARVEL_DB.difficulty.expert);
+    
+    // On prépare une liste des cartes qui doivent démarrer en jeu
+    let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
+
+    // Ajout des sets de difficulté choisis via les Checkboxes (Radios)
+    if (stdDiff !== 'none' && MARVEL_DB.difficulty[stdDiff]) {
+        encounterDeck.push(...(MARVEL_DB.difficulty[stdDiff].cards || []));
+        if (MARVEL_DB.difficulty[stdDiff].start_on_board) {
+            villainCardsToSpawn.push(...MARVEL_DB.difficulty[stdDiff].start_on_board);
+        }
+    }
+    if (isExpert && MARVEL_DB.difficulty[expDiff]) {
+        encounterDeck.push(...(MARVEL_DB.difficulty[expDiff].cards || []));
+        if (MARVEL_DB.difficulty[expDiff].start_on_board) {
+            villainCardsToSpawn.push(...MARVEL_DB.difficulty[expDiff].start_on_board);
+        }
+    }
     
     const useDefaultMod = document.getElementById('mod-default-checkbox').checked;
     const selectedMods = Array.from(document.querySelectorAll('.mod-checkbox:checked')).map(cb => cb.value);
@@ -530,9 +571,6 @@ btnLoadVillain.addEventListener('click', async () => {
     if (useDefaultMod && villainDef.default_modulars) {
         villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
     }
-
-    // On prépare une liste des cartes qui doivent démarrer en jeu
-    let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
 
     modularsToLoad.forEach(mId => {
         let modDef = MARVEL_DB.modulars.find(m => m.id === mId);
@@ -554,9 +592,19 @@ btnLoadVillain.addEventListener('click', async () => {
         if (idx !== -1) {
             // Retire la carte du deck rencontre
             encounterDeck.splice(idx, 1);
-            let cardData = await fetchAPI(code);
-            if (cardData) {
-                let cardDom = buildCardDOM(cardData);
+            
+            // Permet de gérer la présence potentielle de faces B (pour Standard II / III)
+            let baseCode = code.replace(/[ab]$/, '');
+            let frontData = await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode);
+            let backData = await fetchAPI(baseCode + 'b');
+
+            if (frontData) {
+                let cardDom = buildCardDOM(frontData, backData ? getImageUrl(backData) : null);
+                cardDom.dataset.cardDataA = JSON.stringify(frontData);
+                if (backData) {
+                    cardDom.dataset.cardDataB = JSON.stringify(backData);
+                }
+                
                 // On les pose légèrement à droite du méchant principal
                 putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
             }
@@ -647,7 +695,7 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
                 threatToAdd = msData.escalation_threat;
             }
 
-            let accelerationCount = 0;
+            let accelerationCount = parseInt(mainScheme.dataset.acceleration) || 0;
             // On vérifie les icônes d'Accélération sur les cartes face visible
             document.querySelectorAll('.card').forEach(c => {
                 if (c.dataset.cardData && c.dataset.flipped !== 'true') {
@@ -704,24 +752,15 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
 });
 
 async function drawToHandSize() {
-    if (!currentHeroId && myDeck.length === 0) return;
+    if (!currentHeroId && myDeck.length === 0 && discardPile.length === 0) return;
     const currentHandSize = parseInt(heroHandSizeSpan.innerText) || 5;
     const cardsInHand = handArea.querySelectorAll('.card').length;
     const cardsToDraw = currentHandSize - cardsInHand;
     
-    if (cardsToDraw > 0) {
-        for (let i = 0; i < cardsToDraw; i++) {
-            if (myDeck.length === 0) {
-                if (discardPile.length > 0) {
-                    myDeck = [...discardPile];
-                    discardPile = [];
-                    shuffleArray(myDeck);
-                    updateDeckCounters();
-                    alert("⚠️ Pioche vide ! La défausse a été mélangée. N'oublie pas de te donner une carte rencontre face cachée.");
-                } else { break; }
-            }
-            await drawCard('player');
-        }
+    for (let i = 0; i < cardsToDraw; i++) {
+        // Arrêt de sécurité si les deux decks sont vides
+        if (myDeck.length === 0 && discardPile.length === 0) break;
+        await drawCard('player');
     }
     saveGameState();
 }
@@ -735,22 +774,58 @@ for (let i = 0; i < 3; i++) {
     if (d) d.addEventListener('click', () => { drawCard('villain-sec-' + i); saveGameState(); });
 }
 
+// Nouvelle fonction dédiée pour gérer le remélange automatique et les alertes de deck vide
+function reshufflePile(type, pile, discard) {
+    pile.push(...discard);
+    discard.length = 0; // vide la défausse
+    shuffleArray(pile);
+    updateDeckCounters();
+    
+    if (type === 'encounter') {
+        let mainScheme = document.getElementById('main-scheme-element');
+        if (mainScheme) {
+            let acc = parseInt(mainScheme.dataset.acceleration || 0) + 1;
+            mainScheme.dataset.acceleration = acc;
+            syncTokenVisuals(mainScheme);
+            alert("⚠️ Le deck Rencontre est vide et a été mélangé : un jeton d'Accélération a été automatiquement ajouté à la Manigance Principale !");
+        }
+    } else if (type === 'player') {
+        alert("⚠️ Pioche vide ! La défausse a été mélangée pour reformer la pioche. N'oublie pas de te donner une carte rencontre face cachée.");
+    }
+}
+
 async function drawCard(type) {
-    let pile;
+    let pile, discard;
     let vIndex = -1;
     
-    if (type === 'player') pile = myDeck;
-    else if (type === 'encounter') pile = encounterDeck;
-    else if (type === 'hero-sec') pile = heroSecDeck;
+    if (type === 'player') { pile = myDeck; discard = discardPile; }
+    else if (type === 'encounter') { pile = encounterDeck; discard = encounterDiscardPile; }
+    else if (type === 'hero-sec') { pile = heroSecDeck; discard = heroSecDiscard; }
     else if (type.startsWith('villain-sec-')) {
         vIndex = parseInt(type.split('-')[2]);
         pile = villainSecDecks[vIndex];
+        discard = villainSecDiscards[vIndex];
     }
     
-    if (!pile || pile.length === 0) return;
+    if (!pile) return;
+
+    // Tentative de mélange avant de piocher si le deck était DÉJÀ vide au moment de cliquer
+    if (pile.length === 0) {
+        if (discard && discard.length > 0) {
+            reshufflePile(type, pile, discard);
+        } else {
+            return; // Impossible de piocher
+        }
+    }
 
     const code = pile.pop();
     updateDeckCounters();
+
+    // Vérification IMMÉDIATE après la pioche : si la carte piochée était la dernière du deck
+    if (pile.length === 0 && discard && discard.length > 0) {
+        reshufflePile(type, pile, discard);
+    }
+
     const data = await fetchAPI(code);
     if (!data) return;
 
@@ -835,6 +910,7 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     card.dataset.damage = 0;
     card.dataset.threat = initThreat;
     card.dataset.generic = 0;
+    card.dataset.acceleration = 0;
     card.dataset.tough = 0;
     card.dataset.stunned = 0;
     card.dataset.confused = 0;
@@ -854,6 +930,7 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
         <div class="token damage-token hidden">0</div>
         <div class="token threat-token hidden">0</div>
         <div class="token generic-token hidden">0</div>
+        <div class="token acceleration-token hidden" style="top: 50%; right: -8px; transform: translateY(-50%); background-color: #e67e22; color: white;">0</div>
         <div class="status-container tough-container"></div>
         <div class="status-container stunned-container"></div>
         <div class="status-container confused-container"></div>
@@ -867,21 +944,24 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
 
 function syncTokenVisuals(card) {
     const isFlipped = card.dataset.flipped === 'true';
-    // Si la carte a une face B (Héros, Manigance principale), on ne cache jamais les jetons, peu importe le côté visible.
+    // Si la carte a une face B (Héros, Manigance principale, Environnement), on ne cache jamais les jetons
     const isFaceDown = isFlipped && !card.dataset.cardDataB;
     
     const dmg = parseInt(card.dataset.damage) || 0;
     const thrt = parseInt(card.dataset.threat) || 0;
     const gen = parseInt(card.dataset.generic) || 0;
+    const acc = parseInt(card.dataset.acceleration) || 0;
     
     const dmgTok = card.querySelector('.damage-token');
     const thrtTok = card.querySelector('.threat-token');
     const genTok = card.querySelector('.generic-token');
+    const accTok = card.querySelector('.acceleration-token');
     
     // On cache les jetons si la carte est réellement face cachée
     if(dmgTok) { dmgTok.innerText = dmg; dmgTok.classList.toggle('hidden', dmg <= 0 || isFaceDown); }
     if(thrtTok) { thrtTok.innerText = thrt; thrtTok.classList.toggle('hidden', thrt <= 0 || isFaceDown); }
     if(genTok) { genTok.innerText = gen; genTok.classList.toggle('hidden', gen <= 0 || isFaceDown); }
+    if(accTok) { accTok.innerText = acc; accTok.classList.toggle('hidden', acc <= 0 || isFaceDown); }
     
     let toughCount = parseInt(card.dataset.tough);
     if(isNaN(toughCount)) toughCount = card.dataset.tough === "true" ? 1 : 0;
@@ -937,6 +1017,7 @@ function putInHand(cardElement) {
     cardElement.dataset.damage = 0; 
     cardElement.dataset.threat = 0;
     cardElement.dataset.generic = 0;
+    cardElement.dataset.acceleration = 0;
     cardElement.dataset.tough = 0;
     cardElement.dataset.stunned = 0;
     cardElement.dataset.confused = 0;
@@ -997,10 +1078,18 @@ function setupCardInteractions(card) {
         menuNextScheme.classList.add('hidden');
         menuNextVillain.classList.add('hidden');
         menuProgressionSeparator.classList.add('hidden');
+        
+        document.getElementById('menu-add-accel').classList.add('hidden');
+        document.getElementById('menu-sub-accel').classList.add('hidden');
 
-        if (data.type_code === 'main_scheme' && currentSchemeIndex + 1 < currentVillainSchemes.length) {
-            menuNextScheme.classList.remove('hidden');
+        if (data.type_code === 'main_scheme') {
+            document.getElementById('menu-add-accel').classList.remove('hidden');
+            document.getElementById('menu-sub-accel').classList.remove('hidden');
             showSeparator = true;
+            
+            if (currentSchemeIndex + 1 < currentVillainSchemes.length) {
+                menuNextScheme.classList.remove('hidden');
+            }
         }
         
         if (data.type_code === 'villain' && currentVillainStageIndex + 1 < currentVillainStages.length) {
@@ -1026,6 +1115,9 @@ menuNextScheme.addEventListener('click', async () => {
         let x = parseFloat(targetCard.style.left);
         let y = parseFloat(targetCard.style.top);
         
+        // On récupère le nombre de jetons d'accélération présents sur l'ancienne manigance
+        let carryOverAcceleration = parseInt(targetCard.dataset.acceleration) || 0;
+        
         targetCard.remove(); 
         
         currentSchemeIndex++;
@@ -1038,6 +1130,10 @@ menuNextScheme.addEventListener('click', async () => {
             sDom.dataset.cardDataA = JSON.stringify(frontData);
             if (backData) sDom.dataset.cardDataB = JSON.stringify(backData);
             sDom.id = `main-scheme-element`;
+            
+            // Transfert des jetons d'accélération sur le stade suivant de la manigance !
+            sDom.dataset.acceleration = carryOverAcceleration;
+            
             putOnBoardAt(sDom, x, y, false);
         }
         saveGameState();
@@ -1236,6 +1332,7 @@ document.getElementById('menu-clear-tokens').addEventListener('click', () => {
         targetCard.dataset.damage = 0;
         targetCard.dataset.threat = 0;
         targetCard.dataset.generic = 0;
+        targetCard.dataset.acceleration = 0;
         targetCard.dataset.tough = 0;
         targetCard.dataset.stunned = 0;
         targetCard.dataset.confused = 0;

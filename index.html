@@ -125,6 +125,8 @@
     <div id="context-menu" class="hidden">
         <div class="menu-item hidden" id="menu-next-scheme" style="color: #f39c12;">⏭️ Passer à la Manigance suivante</div>
         <div class="menu-item hidden" id="menu-next-villain" style="color: #e74c3c;">⏭️ Passer au Stade suivant (Méchant)</div>
+        <div class="menu-item hidden" id="menu-add-accel">➕ Ajouter Accélération</div>
+        <div class="menu-item hidden" id="menu-sub-accel">➖ Retirer Accélération</div>
         <div class="menu-separator hidden" id="menu-progression-separator"></div>
 
         <div class="menu-item" id="menu-flip">Retourner (Face A / B)</div>
@@ -182,11 +184,26 @@
                     <select id="villain-select" class="menu-select"></select>
                     
                     <label class="menu-label">Set de Difficulté :</label>
-                    <select id="difficulty-select" class="menu-select">
-                        <option value="standard">Standard I</option>
-                        <option value="expert">Expert I (Standard I + Expert I)</option>
-                        <option value="none">Aucun (Non recommandé)</option>
-                    </select>
+                    <div style="background: #2c3e50; padding: 10px; border-radius: 4px; border: 1px solid #7f8c8d; margin-bottom: 10px; font-size: 0.85em; display: flex; flex-direction: column; gap: 10px;">
+                        
+                        <!-- LIGNE STANDARD -->
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <b style="color: #3498db; width: 65px;">Standard:</b>
+                            <label style="cursor: pointer;"><input type="radio" name="diff-std" value="none"> Aucun</label>
+                            <label style="cursor: pointer;"><input type="radio" name="diff-std" value="standard_1" checked> I</label>
+                            <label style="cursor: pointer;"><input type="radio" name="diff-std" value="standard_2"> II</label>
+                            <label style="cursor: pointer;"><input type="radio" name="diff-std" value="standard_3"> III</label>
+                        </div>
+                        
+                        <!-- LIGNE EXPERT -->
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <b style="color: #e74c3c; width: 65px;">Expert:</b>
+                            <label style="cursor: pointer;"><input type="radio" name="diff-exp" value="none" checked> Aucun</label>
+                            <label style="cursor: pointer;"><input type="radio" name="diff-exp" value="expert_1"> I</label>
+                            <label style="cursor: pointer;"><input type="radio" name="diff-exp" value="expert_2"> II</label>
+                        </div>
+                        
+                    </div>
 
                     <label class="menu-label">Sets Modulaires :</label>
                     <div id="modular-list" style="background: #2c3e50; padding: 10px; border-radius: 4px; border: 1px solid #7f8c8d; height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
