@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   push:
     branches:
-      - main # Si ta branche s'appelle 'master', remplace 'main' par 'master'
+      - main # Si ta branche principale s'appelle 'master', change 'main' en 'master'
 
 jobs:
   build:
@@ -24,9 +24,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install Dependencies
+      - name: Initialize package.json if missing & Install Dependencies
         run: |
-          npm install
+          if [ ! -f package.json ]; then
+            npm init -y
+          fi
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
       - name: Sync Capacitor
