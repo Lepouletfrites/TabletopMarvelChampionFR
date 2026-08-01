@@ -21,8 +21,8 @@ jobs:
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '21' # <-- CORRECTION ICI : Java 21 pour Capacitor 6
+          distribution: 'temurin' # <-- CORRECTION : Le moteur standard pour Android
+          java-version: '17'      # <-- Retour à 17 (le plus stable pour Capacitor)
 
       - name: Initialize Node.js & Install Dependencies
         run: |
@@ -53,8 +53,8 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          # CORRECTION ICI : --no-daemon évite les crashs de mémoire sur GitHub
-          ./gradlew assembleDebug --no-daemon 
+          # Ajout de 'clean' et '--no-build-cache' pour éviter que Gradle s'emmêle les pinceaux
+          ./gradlew clean assembleDebug --no-daemon --no-build-cache
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
