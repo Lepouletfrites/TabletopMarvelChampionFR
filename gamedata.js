@@ -96,7 +96,16 @@ const MARVEL_DB = {
         { id: "miles_morales", name: "Miles Morales", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "cyclops", name: "Cyclope", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "phoenix", name: "Phénix", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "wolverine", name: "Wolverine", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
+        { id: "wolverine",
+         name: "Wolverine", 
+         hero_code: "35001a",
+         start_on_board: ["35002"],
+         deck: [], 
+         nemesis: { 
+             obligation: "35027", 
+                    set: ["35028", "35029","35030","35030","35031"] 
+         } 
+        },
         { id: "storm", name: "Tornade (Storm)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "gambit", name: "Gambit", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "rogue", name: "Maligne (Rogue)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
