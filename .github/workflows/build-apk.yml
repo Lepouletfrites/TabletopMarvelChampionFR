@@ -21,8 +21,8 @@ jobs:
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin' # <-- CORRECTION : Le moteur standard pour Android
-          java-version: '17'      # <-- Retour à 17 (le plus stable pour Capacitor)
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Initialize Node.js & Install Dependencies
         run: |
@@ -49,12 +49,21 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Patch Gradle Version (Fix BouncyCastle Bug)
+        run: |
+          cd android
+          # 1. Forcer l'utilisation de Gradle 8.7 (corrige le bug de décompression)
+          sed -i 's/gradle-8.2.1-all.zip/gradle-8.7-all.zip/g' gradle/wrapper/gradle-wrapper.properties
+          
+          # 2. Désactiver la compilation parallèle et allouer de la mémoire
+          echo "org.gradle.parallel=false" >> gradle.properties
+          echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> gradle.properties
+
       - name: Build Android APK
         run: |
           cd android
           chmod +x gradlew
-          # Ajout de 'clean' et '--no-build-cache' pour éviter que Gradle s'emmêle les pinceaux
-          ./gradlew clean assembleDebug --no-daemon --no-build-cache
+          ./gradlew clean assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
