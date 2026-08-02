@@ -1,6 +1,15 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
 const GAME_VERSION = "1.7";
 
+// --- DÉTECTION D'ENVIRONNEMENT ---
+// On considère qu'on est sur le web (ex: GitHub Pages) si le protocole est http/https ET qu'on n'est pas en local
+const isWebBrowser = window.location.protocol.startsWith('http') && 
+                     !window.location.hostname.includes('localhost') && 
+                     !window.location.hostname.includes('127.0.0.1');
+
+// Variable pour stocker le contenu de data/cards.json en mémoire
+let localDatabase = null; 
+
 // --- CONFIGURATION & DOM CONSTANTS ---
 const boardWrapper = document.getElementById('board-wrapper');
 const board = document.getElementById('game-board');
@@ -230,6 +239,12 @@ function initMenus() {
 // 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE
 // ==========================================
 async function fetchAPI(cardCode) {
+    // 1. Plan A : On regarde si la carte est dans notre base de données locale (data/cards.json)
+    if (localDatabase && localDatabase[cardCode]) {
+        return localDatabase[cardCode];
+    }
+
+    // 2. Plan B : Si on ne la trouve pas (ou si on est sur le Web sans le JSON), on tape l'API
     try {
         let resEN = await fetch(`https://marvelcdb.com/api/public/card/${cardCode}.json`);
         if (!resEN.ok) return null;
@@ -253,12 +268,23 @@ async function fetchAPI(cardCode) {
 
 function getImageUrl(cardData) {
     if (!cardData) return '';
-    if (cardData.imagesrc) return `https://marvelcdb.com${cardData.imagesrc}`;
+    
     let code = cardData.code;
+    let imageCode = code;
+    // Gestion de la face A pour les manigances principales
     if (cardData.type_code === 'main_scheme' && !code.endsWith('a') && !code.endsWith('b')) {
-        return `https://marvelcdb.com/bundles/cards/${code}a.png`;
+        imageCode = code + 'a';
     }
-    return `https://marvelcdb.com/bundles/cards/${code}.png`;
+
+    const apiImageUrl = cardData.imagesrc ? `https://marvelcdb.com${cardData.imagesrc}` : `https://marvelcdb.com/bundles/cards/${imageCode}.png`;
+    const localImageUrl = `images/${imageCode}.png`;
+
+    // L'astuce magique : si on est sur GitHub Pages on force l'API, sinon on tape dans ton dossier local
+    if (isWebBrowser) {
+        return apiImageUrl;
+    } else {
+        return localImageUrl;
+    }
 }
 
 // ==========================================
@@ -1786,6 +1812,22 @@ function loadGameState() {
     initMenus();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    // On tente de charger le JSON local généré par ton script Python au tout début
+    try {
+        let res = await fetch('data/cards.json');
+        if (res.ok) {
+            let cardsArray = await res.json();
+            localDatabase = {};
+            // On transforme le tableau en dictionnaire pour trouver les cartes instantanément
+            cardsArray.forEach(card => {
+                localDatabase[card.code] = card;
+            });
+            console.log("✅ Base de données locale chargée ! (" + cardsArray.length + " cartes prêtes)");
+        }
+    } catch (e) {
+        console.log("ℹ️ Fichier local non trouvé (normal si sur GitHub Pages), utilisation de l'API prioritaire.");
+    }
+
     loadGameState();
 });
