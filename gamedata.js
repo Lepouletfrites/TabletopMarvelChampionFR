@@ -73,7 +73,15 @@ const MARVEL_DB = {
         { id: "captain_america", name: "Captain America", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "ms_marvel", name: "Ms. Marvel", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "thor", name: "Thor", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "black_widow", name: "Black Widow", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
+        {
+            id: "black_widow",
+            name: "Black Widow",
+            hero_code: "08001a",
+            deck: [],
+            nemesis: {
+                obligation: "08025",
+                set: ["08026","08027","08028","08028","08029"] }
+        },
         { id: "hulk", name: "Hulk", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "hawkeye", name: "Hawkeye", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "spider_woman", name: "Spider-Woman", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
