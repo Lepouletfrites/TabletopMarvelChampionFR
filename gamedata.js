@@ -102,7 +102,14 @@ const MARVEL_DB = {
         { id: "spdr", name: "SP//dr", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "ghost_spider", name: "Ghost-Spider", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "miles_morales", name: "Miles Morales", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "cyclops", name: "Cyclope", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
+        { id: "cyclops",
+         name: "Cyclope",
+         hero_code: "33001a",
+         deck: [],
+         nemesis: {
+             obligation: "33027",
+             set: ["33028", "33029","33030","33030","33031"] } 
+        },
         { id: "phoenix", name: "Phénix", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
         { id: "wolverine",
          name: "Wolverine", 
@@ -172,7 +179,14 @@ const MARVEL_DB = {
         { id: "green_goblin_risky_business", name: "Le Bouffon Vert - Business en Risque", stages: [], schemes: [], default_modulars: [], base_deck: [] },
         { id: "green_goblin_mutagen_formula", name: "Le Bouffon Vert - Formule Mutagène", stages: [], schemes: [], default_modulars: [], base_deck: [] },
         { id: "wrecking_crew", name: "Les Démolisseurs", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "crossbones", name: "Crossbones", stages: [], schemes: [], default_modulars: [], base_deck: [] },
+        { 
+            id: "crossbones",
+            name: "Crossbones",
+            stages: ["04058","04059","04060"],
+            schemes: ["04061","04062","04063"],
+            default_modulars: ["experimental_weapons","legions_of_hydra","hydra_assault","weapon_master"],
+            base_deck: ["04064","04065","04066","04066","04067","04067","04068","04068","04069","04069","04070","04070","04071"] 
+        },
         { id: "absorbing_man", name: "L'Homme-Absorbant", stages: [], schemes: [], default_modulars: [], base_deck: [] },
         { id: "taskmaster", name: "Le Taskmaster", stages: [], schemes: [], default_modulars: [], base_deck: [] },
         { id: "zola", name: "Arnim Zola", stages: [], schemes: [], default_modulars: [], base_deck: [] },
@@ -234,10 +248,10 @@ const MARVEL_DB = {
         { id: "running_interference", name: "Interférences", cards: [] },
         
         // L'Avènement de Crâne Rouge (Rise of Red Skull)
-        { id: "experimental_weapons", name: "Armes Expérimentales", cards: [] },
-        { id: "hydra_assault", name: "Assaut de l'Hydra", cards: [] },
-        { id: "hydra_patrol", name: "Patrouille de l'Hydra", cards: [] },
-        { id: "weapon_master", name: "Maître d'Armes", cards: [] },
+        { id: "experimental_weapons", name: "Armes Expérimentales", cards: ["04072","04073","04074","04075"] },
+        { id: "hydra_assault", name: "Assaut de l'Hydra", cards: ["04145","04145","04145","04146","04146","04147"] },
+        { id: "hydra_patrol", name: "Patrouille de l'Hydra", cards: ["04152","04152","04153","04153","04153","04154"] },
+        { id: "weapon_master", name: "Maître d'Armes", cards: ["04148","04149","04150","04150","04150","04151"] },
 
         // Kang
         { id: "temporal", name: "Temporel", cards: [] },
