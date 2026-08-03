@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "1.7";
+const GAME_VERSION = "1.9"; // Mise à jour de la version pour le cache
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 // On considère qu'on est sur le web (ex: GitHub Pages) si le protocole est http/https ET qu'on n'est pas en local
@@ -212,10 +212,20 @@ function initMenus() {
     if (typeof MARVEL_DB === 'undefined') return;
 
     heroSelect.innerHTML = '<option value="">-- Sélectionner un Héros --</option>';
-    MARVEL_DB.heroes.forEach(h => heroSelect.innerHTML += `<option value="${h.id}">${h.name}</option>`);
+    MARVEL_DB.heroes.forEach(h => {
+        // N'affiche le héros QUE si le deck contient au moins 1 carte
+        if (h.deck && h.deck.length > 0) {
+            heroSelect.innerHTML += `<option value="${h.id}">${h.name}</option>`;
+        }
+    });
 
     villainSelect.innerHTML = '<option value="">-- Sélectionner un Scénario --</option>';
-    MARVEL_DB.villains.forEach(v => villainSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`);
+    MARVEL_DB.villains.forEach(v => {
+        // N'affiche le méchant QUE si son deck de base ou ses stades contiennent des cartes
+        if ((v.base_deck && v.base_deck.length > 0) || (v.stages && v.stages.length > 0)) {
+            villainSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
+        }
+    });
 
     const modularList = document.getElementById('modular-list');
     if (modularList) {
@@ -226,10 +236,13 @@ function initMenus() {
         <div style="height: 1px; background: #7f8c8d; margin: 5px 0;"></div>`;
         
         MARVEL_DB.modulars.forEach(m => {
-            html += `<label style="cursor: pointer; display: flex; align-items: center; gap: 5px; color: #ecf0f1;">
-                <input type="checkbox" class="mod-checkbox" value="${m.id}"> 
-                ${m.name}
-            </label>`;
+            // N'affiche le set modulaire QUE s'il contient des cartes
+            if (m.cards && m.cards.length > 0) {
+                html += `<label style="cursor: pointer; display: flex; align-items: center; gap: 5px; color: #ecf0f1;">
+                    <input type="checkbox" class="mod-checkbox" value="${m.id}"> 
+                    ${m.name}
+                </label>`;
+            }
         });
         modularList.innerHTML = html;
     }
@@ -880,6 +893,39 @@ async function drawCard(type) {
     }
 }
 
+// Fonction pour mettre à jour les visuels des défausses (pour afficher la dernière carte jetée)
+async function updateDiscardImages() {
+    async function setPileImage(pileArray, elementId) {
+        let el = document.getElementById(elementId);
+        if (!el) return;
+        if (pileArray.length > 0) {
+            let topCode = pileArray[pileArray.length - 1];
+            let data = await fetchAPI(topCode);
+            if (data) {
+                el.style.backgroundImage = `url('${getImageUrl(data)}')`;
+                el.style.backgroundSize = 'cover';
+                el.style.backgroundPosition = 'center';
+                // Ombre au texte pour qu'il reste visible par-dessus la carte
+                el.style.textShadow = '1px 1px 3px black, -1px -1px 3px black, 1px -1px 3px black, -1px 1px 3px black';
+                el.style.color = 'white';
+                el.style.border = '2px solid #fff'; // Aspect de carte posée
+            }
+        } else {
+            el.style.backgroundImage = 'none';
+            el.style.textShadow = 'none';
+            el.style.color = ''; // Retour au style par défaut (CSS)
+            el.style.border = ''; // Retour au pointillé par défaut
+        }
+    }
+    
+    await setPileImage(discardPile, 'discard-pile');
+    await setPileImage(encounterDiscardPile, 'encounter-discard-pile');
+    await setPileImage(heroSecDiscard, 'board-hero-discard');
+    for (let i = 0; i < 3; i++) {
+        await setPileImage(villainSecDiscards[i], 'board-villain-discard-' + i);
+    }
+}
+
 function updateDeckCounters() {
     deckCountText.innerText = myDeck.length;
     deckElement.classList.toggle('hidden', myDeck.length === 0);
@@ -897,6 +943,9 @@ function updateDeckCounters() {
         if (d && villainSecDecks[i]) d.innerText = villainSecDecks[i].length;
         if (dd && villainSecDiscards[i]) dd.innerText = villainSecDiscards[i].length;
     }
+    
+    // Appel pour rafraîchir l'image des défausses
+    updateDiscardImages();
 }
 
 function updateCardOrientation(card) {
