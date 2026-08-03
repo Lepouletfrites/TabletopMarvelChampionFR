@@ -65,9 +65,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .token-btn.active { box-shadow: 0 0 0 2px #fff inset; border-color: #fff; transform: scale(1.05); }
 
 #deck, #discard-pile, #encounter-deck, #encounter-discard-pile { width: 70px; height: 100px; border-radius: 6px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; text-align: center; font-size: 0.75em; cursor: pointer; user-select: none; }
-#deck { background: linear-gradient(135deg, #2980b9, #3498db); border: 2px solid #fff; }
+
+/* NOUVEAUX DECKS AVEC DOS DE CARTES ET OMBRE POUR LE TEXTE */
+#deck { background-color: #2980b9; background-image: url('assets/player_back.jpg'); background-size: cover; background-position: center; border: 2px solid #fff; text-shadow: 1px 1px 3px #000, -1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000; color: white; }
+#encounter-deck { background-color: #c0392b; background-image: url('assets/encounter_back.jpg'); background-size: cover; background-position: center; border: 2px solid #fff; text-shadow: 1px 1px 3px #000, -1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000; color: white; }
+
 #discard-pile { background: #7f8c8d; border: 2px dashed #bdc3c7; }
-#encounter-deck { background: linear-gradient(135deg, #c0392b, #e74c3c); border: 2px solid #fff; }
 #encounter-discard-pile { background: #333; border: 2px dashed #e74c3c; color: #e74c3c; }
 
 .card { position: absolute; width: 120px; height: 168px; border-radius: 6px; box-shadow: 2px 2px 8px rgba(0,0,0,0.6); cursor: grab; user-select: none; transition: transform 0.2s ease; }
