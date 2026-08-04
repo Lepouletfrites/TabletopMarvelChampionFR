@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "2.5"; // Suppression du panneau latéral, zoom flottant intégré
+const GAME_VERSION = "2.7"; // Némésis débloquée pour tous les héros (même via URL) et sauvegarde de l'état
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = window.location.protocol.startsWith('http') && 
@@ -104,6 +104,9 @@ let currentPhaseIndex = 0;
 let currentHeroId = null;
 let resetInProgress = false; 
 
+// Stockage dynamique de la némésis et obligation du héros en cours
+window.currentHeroNemesis = { obligation: null, set: [] };
+
 // --- GESTION DU SCÉNARIO ---
 let currentVillainStages = [];
 let currentVillainStageIndex = 0;
@@ -158,7 +161,7 @@ function updateUndoButton() {
 function undo() {
     if (stateHistory.length > 1) {
         isUndoing = true;
-        stateHistory.pop(); // Enlève l'état actuel
+        stateHistory.pop(); 
         const prevStateString = stateHistory[stateHistory.length - 1];
         
         localStorage.setItem('marvelVTT_save', prevStateString);
@@ -216,7 +219,7 @@ function initMenus() {
 
     villainSelect.innerHTML = '<option value="">-- Sélectionner un Scénario --</option>';
     MARVEL_DB.villains.forEach(v => {
-        if ((v.base_deck && v.base_deck.length > 0) || (v.stages && v.stages.length > 0)) {
+        if (v.card_set_code || (v.stages && v.stages.length > 0)) {
             villainSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
         }
     });
@@ -230,7 +233,7 @@ function initMenus() {
         <div style="height: 1px; background: #7f8c8d; margin: 5px 0;"></div>`;
         
         MARVEL_DB.modulars.forEach(m => {
-            if (m.cards && m.cards.length > 0) {
+            if (m.card_set_code || (m.cards && m.cards.length > 0)) {
                 html += `<label style="cursor: pointer; display: flex; align-items: center; gap: 5px; color: #ecf0f1;">
                     <input type="checkbox" class="mod-checkbox" value="${m.id}"> 
                     ${m.name}
@@ -273,28 +276,23 @@ function getImageUrl(cardData) {
     let code = cardData.code;
     let imageCode = code;
     
-    // Gestion de la face A pour les manigances principales sur le Web
     if (cardData.type_code === 'main_scheme' && !code.endsWith('a') && !code.endsWith('b')) {
         imageCode = code + 'a';
     }
 
     const apiImageUrl = cardData.imagesrc ? `https://marvelcdb.com${cardData.imagesrc}` : `https://marvelcdb.com/bundles/cards/${imageCode}.png`;
     
-    // --- CHEMIN LOCAL FR ---
     let packName = cardData.pack_name || 'Sans Pack';
-    let octgnId = cardData.octgn_id || imageCode; // Fallback de sécurité
+    let octgnId = cardData.octgn_id || imageCode; 
     
-    // CORRECTION : Différencier la face A de la face B/C pour les images OCTGN
     let localFileName = octgnId;
     
-    // Si c'est le dos d'une carte (code se termine par "b" ou "c"), on rajoute le ".b" ou ".c"
     if (code.endsWith('b')) {
         localFileName += '.b'; 
     } else if (code.endsWith('c')) {
         localFileName += '.c';
     }
 
-    // Chemin local basé sur ImageFr / Nom du Pack / OCTGN ID (.b) .jpg
     const localImageUrl = `ImageFr/${packName}/${localFileName}.jpg`;
 
     if (isWebBrowser) {
@@ -384,12 +382,27 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     let frontData = await fetchAPI(coreCode + 'a') || await fetchAPI(coreCode);
     let backData = await fetchAPI(coreCode + 'b');
     
-    let startFace = backData || frontData; // Face de départ inversée (Alter-Ego)
-    let altFace = frontData;               // Face de secours (Héros)
+    let startFace = backData || frontData; 
+    let altFace = frontData;               
     
     currentHeroId = dbHeroId; 
 
-    // On retire l'identité du deck
+    // Auto-Génération de la Némésis et de l'Obligation
+    window.currentHeroNemesis = { obligation: null, set: [] };
+    if (frontData && frontData.card_set_code) {
+        let heroSetCode = frontData.card_set_code;
+        Object.values(localDatabase).forEach(card => {
+            if (card.card_set_code === heroSetCode && card.type_code === 'obligation') {
+                window.currentHeroNemesis.obligation = card.code;
+            }
+            if (card.card_set_code === heroSetCode + '_nemesis') {
+                for (let i = 0; i < (card.quantity || 1); i++) {
+                    window.currentHeroNemesis.set.push(card.code);
+                }
+            }
+        });
+    }
+
     const indicesToRemove = [coreCode, coreCode + 'a', coreCode + 'b'];
     indicesToRemove.forEach(code => {
         let index;
@@ -407,9 +420,8 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     heroDOM.dataset.handSizeA = startFace.hand_size || 5;
     heroDOM.dataset.handSizeB = altFace ? (altFace.hand_size || 6) : 6;
     
-    // POSITIONNEMENT ABSOLU POUR ALIGNEMENT PARFAIT
     const spawnX = CENTER_X;
-    const spawnY = CENTER_Y + 400; // Espace vers le bas
+    const spawnY = CENTER_Y + 400; 
     
     putOnBoardAt(heroDOM, spawnX, spawnY, false);
 
@@ -417,7 +429,6 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     heroHpInput.value = startFace.health || 10;
     heroHandSizeSpan.innerText = heroDOM.dataset.handSizeA;
     
-    // GESTION CARTES DE DÉPART (START ON BOARD) POUR LE HÉROS
     if (currentHeroId) {
         const heroDef = MARVEL_DB.heroes.find(h => h.id === currentHeroId);
         if (heroDef && heroDef.start_on_board) {
@@ -435,7 +446,6 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         }
     }
 
-    // GESTION DECK SECONDAIRE HÉROS
     if (secondaryDeckData) {
         heroSecDeck = [...secondaryDeckData];
         shuffleArray(heroSecDeck);
@@ -449,7 +459,7 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         hdd.style.top = (spawnY) + "px";
     }
 
-    if (currentHeroId && btnAddNemesis) {
+    if (btnAddNemesis && window.currentHeroNemesis.set.length > 0) {
         btnAddNemesis.classList.remove('hidden');
     }
     
@@ -463,9 +473,7 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
 // --- BOUTON NÉMÉSIS ---
 if (btnAddNemesis) {
     btnAddNemesis.addEventListener('click', async () => {
-        if (!currentHeroId) return;
-        const heroDef = MARVEL_DB.heroes.find(h => h.id === currentHeroId);
-        if (!heroDef || !heroDef.nemesis) return;
+        if (!window.currentHeroNemesis || window.currentHeroNemesis.set.length === 0) return;
 
         btnAddNemesis.innerText = "Recherche...";
         btnAddNemesis.disabled = true;
@@ -474,11 +482,11 @@ if (btnAddNemesis) {
             const spawnX = CENTER_X;
             const spawnY = CENTER_Y;
 
-            if (heroDef.nemesis.obligation) encounterDeck.push(heroDef.nemesis.obligation);
+            if (window.currentHeroNemesis.obligation) encounterDeck.push(window.currentHeroNemesis.obligation);
 
             let minionDeployed = false, schemeDeployed = false;
 
-            for (let code of heroDef.nemesis.set) {
+            for (let code of window.currentHeroNemesis.set) {
                 const cardData = await fetchAPI(code);
                 if (!cardData) continue;
 
@@ -520,9 +528,9 @@ btnLoadVillain.addEventListener('click', async () => {
     
     const villainDef = MARVEL_DB.villains.find(v => v.id === vId);
     
-    currentVillainStages = villainDef.stages;
+    currentVillainStages = villainDef.stages || [];
     currentVillainStageIndex = isExpert ? 1 : 0; 
-    currentVillainSchemes = villainDef.schemes;
+    currentVillainSchemes = villainDef.schemes || [];
     currentSchemeIndex = 0;
 
     const spawnX = CENTER_X;
@@ -550,7 +558,6 @@ btnLoadVillain.addEventListener('click', async () => {
         }
     }
     
-    // GESTION MULTIPLES DECKS SECONDAIRES MÉCHANT
     vSecCount = 0;
     villainSecDecks = [[], [], []];
     villainSecDiscards = [[], [], []];
@@ -578,10 +585,25 @@ btnLoadVillain.addEventListener('click', async () => {
         deployVillainSecDeck(villainDef.secondary_deck, "DECK<br>SPÉCIAL");
     }
 
-    encounterDeck = [...villainDef.base_deck];
-    
+    encounterDeck = [];
     let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
 
+    // Construction dynamique du deck du Méchant basé sur son card_set_code
+    if (villainDef.card_set_code) {
+        Object.values(localDatabase).forEach(card => {
+            if (card.card_set_code === villainDef.card_set_code && !['villain', 'main_scheme'].includes(card.type_code)) {
+                if (card.type_code === 'environment' && !villainCardsToSpawn.includes(card.code)) {
+                    villainCardsToSpawn.push(card.code);
+                } else if (card.type_code !== 'environment') {
+                    for (let i = 0; i < (card.quantity || 1); i++) {
+                        encounterDeck.push(card.code);
+                    }
+                }
+            }
+        });
+    }
+
+    // Ajout des Sets de Difficulté
     if (stdDiff !== 'none' && MARVEL_DB.difficulty[stdDiff]) {
         encounterDeck.push(...(MARVEL_DB.difficulty[stdDiff].cards || []));
         if (MARVEL_DB.difficulty[stdDiff].start_on_board) {
@@ -603,10 +625,23 @@ btnLoadVillain.addEventListener('click', async () => {
         villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
     }
 
+    // Construction dynamique des Decks Modulaires basés sur leur card_set_code
     modularsToLoad.forEach(mId => {
         let modDef = MARVEL_DB.modulars.find(m => m.id === mId);
         if (modDef) {
-            if (modDef.cards && modDef.cards.length > 0) encounterDeck.push(...modDef.cards);
+            if (modDef.card_set_code) {
+                Object.values(localDatabase).forEach(card => {
+                    if (card.card_set_code === modDef.card_set_code) {
+                        for (let i = 0; i < (card.quantity || 1); i++) {
+                            encounterDeck.push(card.code);
+                        }
+                    }
+                });
+            } else if (modDef.cards && modDef.cards.length > 0) {
+                // Fallback pour les objets non encore mis à jour
+                encounterDeck.push(...modDef.cards);
+            }
+
             if (modDef.secondary_deck) {
                 deployVillainSecDeck(modDef.secondary_deck, modDef.name.substring(0, 15).toUpperCase());
             }
@@ -620,18 +655,19 @@ btnLoadVillain.addEventListener('click', async () => {
         let idx = encounterDeck.indexOf(code);
         if (idx !== -1) {
             encounterDeck.splice(idx, 1);
-            let baseCode = code.replace(/[ab]$/, '');
-            let frontData = await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode);
-            let backData = await fetchAPI(baseCode + 'b');
+        }
+        
+        let baseCode = code.replace(/[ab]$/, '');
+        let frontData = await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode);
+        let backData = await fetchAPI(baseCode + 'b');
 
-            if (frontData) {
-                let cardDom = buildCardDOM(frontData, backData ? getImageUrl(backData) : null);
-                cardDom.dataset.cardDataA = JSON.stringify(frontData);
-                if (backData) {
-                    cardDom.dataset.cardDataB = JSON.stringify(backData);
-                }
-                putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
+        if (frontData) {
+            let cardDom = buildCardDOM(frontData, backData ? getImageUrl(backData) : null);
+            cardDom.dataset.cardDataA = JSON.stringify(frontData);
+            if (backData) {
+                cardDom.dataset.cardDataB = JSON.stringify(backData);
             }
+            putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
         }
     }
 
@@ -1572,7 +1608,6 @@ function hideZoom() {
     floatingZoom.classList.add('hidden');
 }
 
-// Clic sur l'image zoomée pour la fermer
 floatingZoom.addEventListener('click', hideZoom);
 
 function shuffleArray(array) {
@@ -1587,13 +1622,14 @@ function saveGameState(isAutoSave = false) {
     
     try {
         const state = {
-            version: GAME_VERSION, // Sauvegarde de la version pour la détection
+            version: GAME_VERSION, 
             myDeck, discardPile, encounterDeck, encounterDiscardPile,
             heroSecDeck, heroSecDiscard, 
             villainSecDecks, villainSecDiscards,
             currentHeroId, boardX, boardY, scale,
             heroHp: heroHpInput.value,
             heroHandSize: heroHandSizeSpan.innerText,
+            heroNemesis: window.currentHeroNemesis, // <-- SAUVEGARDE DE LA NÉMÉSIS AJOUTÉE ICI
             
             currentVillainStages, currentVillainStageIndex,
             currentVillainSchemes, currentSchemeIndex,
@@ -1633,7 +1669,6 @@ function saveGameState(isAutoSave = false) {
         const stateString = JSON.stringify(state);
         localStorage.setItem('marvelVTT_save', stateString);
 
-        // N'alimente l'historique que pour les actions délibérées, pas pendant la sauvegarde auto
         if (!isUndoing && !resetInProgress && !isAutoSave) {
             if (stateHistory.length === 0 || stateHistory[stateHistory.length - 1] !== stateString) {
                 stateHistory.push(stateString);
@@ -1649,7 +1684,6 @@ function saveGameState(isAutoSave = false) {
     }
 }
 
-// On passe "true" à isAutoSave pour éviter de polluer l'historique de ctrl+z
 setInterval(() => saveGameState(true), 3000); 
 
 window.addEventListener('beforeunload', () => saveGameState(true)); 
@@ -1667,7 +1701,6 @@ function loadGameState() {
     try {
         const state = JSON.parse(saved);
         
-        // VÉRIFICATION DE LA VERSION : si ancienne version, on nettoie tout pour appliquer la mise à jour
         if (!state.version || state.version !== GAME_VERSION) {
             console.log("Nouvelle version du site détectée ! Réinitialisation des données...");
             localStorage.removeItem('marvelVTT_save');
@@ -1686,6 +1719,9 @@ function loadGameState() {
         villainSecDiscards = state.villainSecDiscards || [[], [], []];
         
         currentHeroId = state.currentHeroId || null;
+        
+        // --- CHARGEMENT DE LA NÉMÉSIS DEPUIS LA SAUVEGARDE ---
+        window.currentHeroNemesis = state.heroNemesis || { obligation: null, set: [] };
         
         currentVillainStages = state.currentVillainStages || [];
         currentVillainStageIndex = state.currentVillainStageIndex || 0;
@@ -1740,7 +1776,10 @@ function loadGameState() {
             }
         }
 
-        if (currentHeroId && btnAddNemesis) btnAddNemesis.classList.remove('hidden');
+        // --- AFFICHAGE DU BOUTON NÉMÉSIS ---
+        if (btnAddNemesis && window.currentHeroNemesis && window.currentHeroNemesis.set.length > 0) {
+            btnAddNemesis.classList.remove('hidden');
+        }
 
         updateDeckCounters();
 

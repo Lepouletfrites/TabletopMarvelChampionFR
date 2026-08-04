@@ -6,327 +6,279 @@ const MARVEL_DB = {
     
     // --- HÉROS PRÉCONSTRUITS ---
     heroes: [
-        // --- Existants (avec ID vérifiés) ---
+        // --- Existants (Boîte de Base + Strange) ---
         {
             id: "spiderman_core",
             name: "Spider-Man - Justice (Boîte de base)",
             hero_code: "01001a",
-            deck: ['01001a', '01002', '01003', '01003', '01004', '01004', '01005', '01005', '01006', '01006', '01006', '01007', '01007', '01008', '01009', '01009', '01058', '01059', '01060', '01060', '01060', '01061', '01061', '01062', '01062', '01063', '01064', '01064', '01065', '01065', '01065', '01084', '01085', '01088', '01089', '01090', '01091', '01092', '01093', '01093', '01093'],
-            nemesis: {
-                obligation: "01165",
-                set: ["01166", "01167", "01168", "01168", "01169"]
-            }
+            deck: ['01001a', '01002', '01003', '01003', '01004', '01004', '01005', '01005', '01006', '01006', '01006', '01007', '01007', '01008', '01009', '01009', '01058', '01059', '01060', '01060', '01060', '01061', '01061', '01062', '01062', '01063', '01064', '01064', '01065', '01065', '01065', '01084', '01085', '01088', '01089', '01090', '01091', '01092', '01093', '01093', '01093']
         },
         {
             id: "captainmarvel_core",
             name: "Captain Marvel - Commandement (Boîte de base)",
             hero_code: "01010a",
-            deck: ['01010a', '01011', '01012', '01013', '01013', '01014', '01014', '01015', '01015', '01015', '01016', '01016', '01016', '01017', '01066', '01067', '01068', '01069', '01069', '01070', '01070', '01071', '01071', '01072', '01072', '01073', '01073', '01074', '01083', '01083', '01084', '01084', '01085', '01085', '01088', '01089', '01090', '01091', '01092', '01093', '01093'],
-            nemesis: {
-                obligation: "01175",
-                set: ["01176", "01177", "01178", "01178", "01179"]
-            }
+            deck: ['01010a', '01011', '01012', '01013', '01013', '01014', '01014', '01015', '01015', '01015', '01016', '01016', '01016', '01017', '01066', '01067', '01068', '01069', '01069', '01070', '01070', '01071', '01071', '01072', '01072', '01073', '01073', '01074', '01083', '01083', '01084', '01084', '01085', '01085', '01088', '01089', '01090', '01091', '01092', '01093', '01093']
         },
         {
             id: "shehulk_core",
             name: "Miss Hulk - Agressivité (Cartes de base)",
             hero_code: "01018a",
-            deck: ['01018a', '01019', '01020', '01020', '01021', '01021', '01022', '01022', '01022', '01023', '01023', '01024', '01024', '01025', '01026'],
-            nemesis: {
-                obligation: "01160",
-                set: ["01161", "01162", "01163", "01164", "01164"]
-            }
+            deck: ['01018a', '01019', '01020', '01020', '01021', '01021', '01022', '01022', '01022', '01023', '01023', '01024', '01024', '01025', '01026']
         },
         {
             id: "blackpanther_core",
             name: "Black Panther - Protection (Cartes de base)",
             hero_code: "01027a",
-            deck: ['01027a', '01028', '01029', '01029', '01029', '01030', '01031', '01031', '01031', '01031', '01032', '01032', '01033', '01034', '01035'],
-            nemesis: {
-                obligation: "01155",
-                set: ["01156", "01157", "01158", "01159", "01159"]
-            }
+            deck: ['01027a', '01028', '01029', '01029', '01029', '01030', '01031', '01031', '01031', '01031', '01032', '01032', '01033', '01034', '01035']
         },
         {
             id: "ironman_core",
             name: "Iron Man - Agressivité (Cartes de base)",
             hero_code: "01039a",
-            deck: ['01039a', '01040', '01041', '01041', '01042', '01042', '01043', '01044', '01044', '01045', '01045', '01046', '01047', '01048', '01049'],
-            nemesis: {
-                obligation: "01170",
-                set: ["01171", "01172", "01173", "01173", "01174"]
-            }
+            deck: ['01039a', '01040', '01041', '01041', '01042', '01042', '01043', '01044', '01044', '01045', '01045', '01046', '01047', '01048', '01049']
         },
         {
             id: "doctor_strange",
             name: "Doctor Strange - Protection (Préconstruit + Deck Invocation)",
             hero_code: "09001a",
             deck: ["09001a", "09002", "09003", "09004", "09004", "09005", "09005", "09006", "09007", "09007", "09008", "09009", "09010", "09011", "09011", "09012", "09012", "09013", "09013", "09014", "09015", "09016", "09017", "09017", "09018", "09018", "09019", "09019", "09020", "09020", "09021", "09022", "09022", "09022", "09023", "09024", "09025", "09026", "09027", "09028"],
-            secondary_deck: ["09032", "09033", "09034", "09035", "09036"],
-            nemesis: {
-                obligation: "09029",
-                set: ["09030", "09031", "09031", "09031"]
-            }
+            secondary_deck: ["09032", "09033", "09034", "09035", "09036"]
         },
 
-        // --- Nouveaux Héros (Structure vide à compléter via API) ---
-        { id: "captain_america", name: "Captain America", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "ms_marvel", name: "Ms. Marvel", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "thor", name: "Thor", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        {
-            id: "black_widow",
-            name: "Black Widow",
-            hero_code: "08001a",
-            deck: [],
-            nemesis: {
-                obligation: "08025",
-                set: ["08026","08027","08028","08028","08029"] }
-        },
-        { id: "hulk", name: "Hulk", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "hawkeye", name: "Hawkeye", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "spider_woman", name: "Spider-Woman", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "ant_man", name: "Ant-Man", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "wasp", name: "La Guêpe (Wasp)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "quicksilver", name: "Vif-Argent (Quicksilver)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "scarlet_witch", name: "La Sorcière Rouge (Scarlet Witch)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "venom", name: "Venom", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "spectrum", name: "Spectrum", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "adam_warlock", name: "Adam Warlock", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "nebula", name: "Nébula", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "war_machine", name: "War Machine", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "valkyrie", name: "Valkyrie", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "vision", name: "Vision", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "nova", name: "Nova", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "ironheart", name: "Ironheart", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "spider_ham", name: "Spider-Ham", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "spdr", name: "SP//dr", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "ghost_spider", name: "Ghost-Spider", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "miles_morales", name: "Miles Morales", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "cyclops",
-         name: "Cyclope",
-         hero_code: "33001a",
-         deck: [],
-         nemesis: {
-             obligation: "33027",
-             set: ["33028", "33029","33030","33030","33031"] } 
-        },
-        { id: "phoenix", name: "Phénix", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "wolverine",
-         name: "Wolverine", 
-         hero_code: "35001a",
-         start_on_board: ["35002"],
-         deck: [], 
-         nemesis: { 
-             obligation: "35027", 
-                    set: ["35028", "35029","35030","35030","35031"] 
-         } 
-        },
-        { id: "storm", name: "Tornade (Storm)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "gambit", name: "Gambit", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "rogue", name: "Maligne (Rogue)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "cable", name: "Cable", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "domino", name: "Domino", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "psylocke", name: "Psylocke", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "angel", name: "Angel", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "x23", name: "X-23", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "deadpool", name: "Deadpool", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "bishop", name: "Bishop", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "magik", name: "Magik", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "iceman", name: "Iceberg (Iceman)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "jubilee", name: "Jubilé", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "nightcrawler", name: "Diable Manquant (Nightcrawler)", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } },
-        { id: "magneto", name: "Magnéto", hero_code: "", deck: [], nemesis: { obligation: "", set: [] } }
+        // --- Nouveaux Héros (Prêts à être remplis) ---
+        { id: "captain_america", name: "Captain America", hero_code: "", deck: [] },
+        { id: "ms_marvel", name: "Ms. Marvel", hero_code: "", deck: [] },
+        { id: "thor", name: "Thor", hero_code: "", deck: [] },
+        { id: "black_widow", name: "Black Widow", hero_code: "08001a", deck: [] },
+        { id: "hulk", name: "Hulk", hero_code: "", deck: [] },
+        { id: "hawkeye", name: "Hawkeye", hero_code: "", deck: [] },
+        { id: "spider_woman", name: "Spider-Woman", hero_code: "", deck: [] },
+        { id: "ant_man", name: "Ant-Man", hero_code: "", deck: [] },
+        { id: "wasp", name: "La Guêpe (Wasp)", hero_code: "", deck: [] },
+        { id: "quicksilver", name: "Vif-Argent (Quicksilver)", hero_code: "", deck: [] },
+        { id: "scarlet_witch", name: "La Sorcière Rouge (Scarlet Witch)", hero_code: "", deck: [] },
+        { id: "venom", name: "Venom", hero_code: "", deck: [] },
+        { id: "spectrum", name: "Spectrum", hero_code: "", deck: [] },
+        { id: "adam_warlock", name: "Adam Warlock", hero_code: "", deck: [] },
+        { id: "nebula", name: "Nébula", hero_code: "", deck: [] },
+        { id: "war_machine", name: "War Machine", hero_code: "", deck: [] },
+        { id: "valkyrie", name: "Valkyrie", hero_code: "", deck: [] },
+        { id: "vision", name: "Vision", hero_code: "", deck: [] },
+        { id: "nova", name: "Nova", hero_code: "", deck: [] },
+        { id: "ironheart", name: "Ironheart", hero_code: "", deck: [] },
+        { id: "spider_ham", name: "Spider-Ham", hero_code: "", deck: [] },
+        { id: "spdr", name: "SP//dr", hero_code: "", deck: [] },
+        { id: "ghost_spider", name: "Ghost-Spider", hero_code: "", deck: [] },
+        { id: "miles_morales", name: "Miles Morales", hero_code: "", deck: [] },
+        { id: "cyclops", name: "Cyclope", hero_code: "33001a", deck: [] },
+        { id: "phoenix", name: "Phénix", hero_code: "", deck: [] },
+        { id: "wolverine", name: "Wolverine", hero_code: "35001a", start_on_board: ["35002"], deck: [] },
+        { id: "storm", name: "Tornade (Storm)", hero_code: "", deck: [] },
+        { id: "gambit", name: "Gambit", hero_code: "", deck: [] },
+        { id: "rogue", name: "Maligne (Rogue)", hero_code: "", deck: [] },
+        { id: "cable", name: "Cable", hero_code: "", deck: [] },
+        { id: "domino", name: "Domino", hero_code: "", deck: [] },
+        { id: "psylocke", name: "Psylocke", hero_code: "", deck: [] },
+        { id: "angel", name: "Angel", hero_code: "", deck: [] },
+        { id: "x23", name: "X-23", hero_code: "", deck: [] },
+        { id: "deadpool", name: "Deadpool", hero_code: "", deck: [] },
+        { id: "bishop", name: "Bishop", hero_code: "", deck: [] },
+        { id: "magik", name: "Magik", hero_code: "", deck: [] },
+        { id: "iceman", name: "Iceberg (Iceman)", hero_code: "", deck: [] },
+        { id: "jubilee", name: "Jubilé", hero_code: "", deck: [] },
+        { id: "nightcrawler", name: "Diable Manquant (Nightcrawler)", hero_code: "", deck: [] },
+        { id: "magneto", name: "Magnéto", hero_code: "", deck: [] }
     ],
 
     // --- SCÉNARIOS DES MÉCHANTS ---
     villains: [
-        // --- Existants (avec ID vérifiés) ---
+        // --- Existants (Boîte de base + Thanos) ---
         {
             id: "rhino",
             name: "Rhino (Boîte de base)",
+            card_set_code: "rhino",
             stages: ["01094", "01095", "01096"], 
             schemes: ["01097"],         
-            default_modulars: ["bomb_scare"],
-            base_deck: ["01098", "01099", "01099", "01100", "01101", "01101", "01102", "01103", "01104", "01104", "01105", "01105", "01106", "01106", "01107", "01108"]
+            default_modulars: ["bomb_scare"]
         },
         {
             id: "klaw",
             name: "Klaw (Boîte de base)",
+            card_set_code: "klaw",
             stages: ["01113", "01114","01115"], 
             schemes: ["01116", "01117"],         
-            default_modulars: ["masters_of_evil"],
-            base_deck: ["01118", "01119", "01120", "01120", "01121", "01121", "01122", "01122", "01123", "01123", "01124", "01124", "01125", "01126", "01127"]
+            default_modulars: ["masters_of_evil"]
         },
         {
             id: "ultron",
             name: "Ultron (Boîte de base)",
+            card_set_code: "ultron",
             stages: ["01134", "01135", "01136"], 
             schemes: ["01137", "01138", "01139"],         
             default_modulars: ["under_attack"],
-            start_on_board: ["01140"],
-            base_deck: ["01140", "01141", "01142", "01142", "01143", "01143", "01144", "01144", "01144a", "01144b", "01144c", "01145", "01145", "01146", "01146", "01147", "01147", "01148", "01149", "01150"]
+            start_on_board: ["01140"]
         },
         {
             id: "thanos",
             name: "Thanos (L'Ombre du Titan Fou)",
+            card_set_code: "thanos",
             stages: ["21111", "21112", "21113"], 
             schemes: ["21114", "21115"],         
-            default_modulars: ["infinity_gauntlet","children_of_thanos","black_order"],
-            base_deck: ["21116", "21117", "21118", "21119", "21119", "21120", "21120", "21121", "21121", "21122", "21122", "21123", "21123", "21124"]
+            default_modulars: ["infinity_gauntlet","children_of_thanos","black_order"]
         },
 
-        // --- Nouveaux Méchants (Structure vide à compléter via API) ---
-        { id: "green_goblin_risky_business", name: "Le Bouffon Vert - Business en Risque", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "green_goblin_mutagen_formula", name: "Le Bouffon Vert - Formule Mutagène", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "wrecking_crew", name: "Les Démolisseurs", stages: [], schemes: [], default_modulars: [], base_deck: [] },
+        // --- Nouveaux Méchants (Avec card_set_code complétés) ---
+        { id: "green_goblin_risky_business", name: "Le Bouffon Vert - Business en Risque", card_set_code: "risky_business", stages: [], schemes: [], default_modulars: ["goblin_gimmicks"] },
+        { id: "green_goblin_mutagen_formula", name: "Le Bouffon Vert - Formule Mutagène", card_set_code: "mutagen_formula", stages: [], schemes: [], default_modulars: ["goblin_gimmicks"] },
+        { id: "wrecking_crew", name: "Les Démolisseurs", card_set_code: "wrecking_crew", stages: [], schemes: [], default_modulars: [] },
         { 
             id: "crossbones",
             name: "Crossbones",
+            card_set_code: "crossbones",
             stages: ["04058","04059","04060"],
             schemes: ["04061","04062","04063"],
-            default_modulars: ["experimental_weapons","legions_of_hydra","hydra_assault","weapon_master"],
-            base_deck: ["04064","04065","04066","04066","04067","04067","04068","04068","04069","04069","04070","04070","04071"] 
+            default_modulars: ["experimental_weapons","legions_of_hydra","hydra_assault","weapon_master"]
         },
-        { id: "absorbing_man", name: "L'Homme-Absorbant", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "taskmaster", name: "Le Taskmaster", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "zola", name: "Arnim Zola", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "red_skull", name: "Crâne Rouge", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "kang", name: "Kang le Conquérant", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "drang", name: "Drang de la Confrérie Badoon", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "collector_infiltrate", name: "Le Collectionneur - Infiltration du Musée", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "collector_escape", name: "Le Collectionneur - Fuite du Musée", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "nebula_villain", name: "Nébula (Méchante)", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "ronan", name: "Ronan l'Accusateur", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "ebony_maw", name: "Ebony Maw", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "tower_defense", name: "Défense de la Tour", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "hela", name: "Hela", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "loki", name: "Loki", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "the_hood", name: "Le Capuchon (The Hood)", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "sandman", name: "L'Homme-Sable", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "venom_villain", name: "Venom (Méchant)", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "mysterio", name: "Mystério", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "sinister_six", name: "Les Six Sinistres", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "venom_goblin", name: "Venom-Bouffon", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "sabretooth", name: "Dents-de-Sabre", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "sentinel", name: "Sentinelle", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "master_mold", name: "Moule Initial", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "mansion_attack", name: "Attaque de l'Institut", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "magneto_villain", name: "Magnéto (Méchant)", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "magog", name: "Magog", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "spiral", name: "Spirale", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "mojo", name: "Mojo", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "morlock_siege", name: "Siège des Morlocks", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "on_the_run", name: "En Fuite", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "juggernaut", name: "Le Fléau (Juggernaut)", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "mister_sinister", name: "Monsieur Sinistre", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "stryfe", name: "Stryfe", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "unus", name: "Unus l'Intouchable", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "four_horsemen", name: "Les Quatre Cavaliers", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "apocalypse", name: "Apocalypse", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "dark_phoenix", name: "Phénix Noir", stages: [], schemes: [], default_modulars: [], base_deck: [] },
-        { id: "en_sabah_nur", name: "En Sabah Nur", stages: [], schemes: [], default_modulars: [], base_deck: [] }
+        { id: "absorbing_man", name: "L'Homme-Absorbant", card_set_code: "absorbing_man", stages: [], schemes: [], default_modulars: [] },
+        { id: "taskmaster", name: "Le Taskmaster", card_set_code: "taskmaster", stages: [], schemes: [], default_modulars: [] },
+        { id: "zola", name: "Arnim Zola", card_set_code: "zola", stages: [], schemes: [], default_modulars: [] },
+        { id: "red_skull", name: "Crâne Rouge", card_set_code: "red_skull", stages: [], schemes: [], default_modulars: [] },
+        { id: "kang", name: "Kang le Conquérant", card_set_code: "kang", stages: [], schemes: [], default_modulars: ["temporal"] },
+        { id: "drang", name: "Drang de la Confrérie Badoon", card_set_code: "brotherhood_of_badoon", stages: [], schemes: [], default_modulars: ["band_of_badoon"] },
+        { id: "collector_infiltrate", name: "Le Collectionneur - Infiltration du Musée", card_set_code: "infiltrate_the_museum", stages: [], schemes: [], default_modulars: ["galactic_artifacts"] },
+        { id: "collector_escape", name: "Le Collectionneur - Fuite du Musée", card_set_code: "escape_the_museum", stages: [], schemes: [], default_modulars: ["galactic_artifacts"] },
+        { id: "nebula_villain", name: "Nébula (Méchante)", card_set_code: "nebula_villain", stages: [], schemes: [], default_modulars: ["ship_command"] },
+        { id: "ronan", name: "Ronan l'Accusateur", card_set_code: "ronan", stages: [], schemes: [], default_modulars: ["kree_militants"] },
+        { id: "ebony_maw", name: "Ebony Maw", card_set_code: "ebony_maw", stages: [], schemes: [], default_modulars: ["black_order"] },
+        { id: "tower_defense", name: "Défense de la Tour", card_set_code: "tower_defense", stages: [], schemes: [], default_modulars: ["black_order"] },
+        { id: "hela", name: "Hela", card_set_code: "hela", stages: [], schemes: [], default_modulars: ["legions_of_hel"] },
+        { id: "loki", name: "Loki", card_set_code: "loki", stages: [], schemes: [], default_modulars: ["enchantress"] },
+        { id: "the_hood", name: "Le Capuchon (The Hood)", card_set_code: "the_hood", stages: [], schemes: [], default_modulars: ["streets_of_mayhem"] },
+        { id: "sandman", name: "L'Homme-Sable", card_set_code: "sandman", stages: [], schemes: [], default_modulars: ["city_in_chaos"] },
+        { id: "venom_villain", name: "Venom (Méchant)", card_set_code: "venom_villain", stages: [], schemes: [], default_modulars: ["symbiotic_strength"] },
+        { id: "mysterio", name: "Mystério", card_set_code: "mysterio", stages: [], schemes: [], default_modulars: ["personal_nightmare"] },
+        { id: "sinister_six", name: "Les Six Sinistres", card_set_code: "sinister_six", stages: [], schemes: [], default_modulars: ["guerilla_tactics"] },
+        { id: "venom_goblin", name: "Venom-Bouffon", card_set_code: "venom_goblin", stages: [], schemes: [], default_modulars: ["symbiotic_strength"] },
+        { id: "sabretooth", name: "Dents-de-Sabre", card_set_code: "sabretooth", stages: [], schemes: [], default_modulars: ["brotherhood"] },
+        { id: "sentinel", name: "Sentinelle", card_set_code: "sentinel", stages: [], schemes: [], default_modulars: ["zero_tolerance"] },
+        { id: "master_mold", name: "Moule Initial", card_set_code: "master_mold", stages: [], schemes: [], default_modulars: ["sentinels"] },
+        { id: "mansion_attack", name: "Attaque de l'Institut", card_set_code: "mansion_attack", stages: [], schemes: [], default_modulars: ["brotherhood"] },
+        { id: "magneto_villain", name: "Magnéto (Méchant)", card_set_code: "magneto_villain", stages: [], schemes: [], default_modulars: ["acolytes"] },
+        { id: "magog", name: "Magog", card_set_code: "magog", stages: [], schemes: [], default_modulars: ["crime"] },
+        { id: "spiral", name: "Spirale", card_set_code: "spiral", stages: [], schemes: [], default_modulars: ["fantasy"] },
+        { id: "mojo", name: "Mojo", card_set_code: "mojo", stages: [], schemes: [], default_modulars: ["sitcom"] },
+        { id: "morlock_siege", name: "Siège des Morlocks", card_set_code: "morlock_siege", stages: [], schemes: [], default_modulars: ["mutant_peacemakers"] },
+        { id: "on_the_run", name: "En Fuite", card_set_code: "on_the_run", stages: [], schemes: [], default_modulars: ["mutant_provocateurs"] },
+        { id: "juggernaut", name: "Le Fléau (Juggernaut)", card_set_code: "juggernaut", stages: [], schemes: [], default_modulars: ["nasty_boys"] },
+        { id: "mister_sinister", name: "Monsieur Sinistre", card_set_code: "mister_sinister", stages: [], schemes: [], default_modulars: ["reavers"] },
+        { id: "stryfe", name: "Stryfe", card_set_code: "stryfe", stages: [], schemes: [], default_modulars: ["zero_tolerance"] },
+        { id: "unus", name: "Unus l'Intouchable", card_set_code: "unus", stages: [], schemes: [], default_modulars: ["infinites"] },
+        { id: "four_horsemen", name: "Les Quatre Cavaliers", card_set_code: "four_horsemen", stages: [], schemes: [], default_modulars: ["clan_akkaba"] },
+        { id: "apocalypse", name: "Apocalypse", card_set_code: "apocalypse", stages: [], schemes: [], default_modulars: ["prelates"] },
+        { id: "dark_phoenix", name: "Phénix Noir", card_set_code: "dark_phoenix", stages: [], schemes: [], default_modulars: [] },
+        { id: "en_sabah_nur", name: "En Sabah Nur", card_set_code: "en_sabah_nur", stages: [], schemes: [], default_modulars: [] }
     ],
 
     // --- SETS MODULAIRES ---
     modulars: [
-        // --- Existants (avec ID vérifiés) ---
-        { id: "bomb_scare", name: "Alerte à la Bombe", cards: ["01109", "011010", "01110", "01111", "01112", "01112"] },
-        { id: "masters_of_evil", name: "Les Maîtres du Mal", cards: ["01128", "01129", "01130", "01131", "01132", "01133", "01133"] },
-        { id: "under_attack", name: "En Pleine Attaque", cards: ["01151", "01152", "01153", "01154", "01154"] },
-        { id: "legions_of_hydra", name: "Légions de l'Hydra", cards: ["01180", "01180", "01181", "01182", "01182"] },
-        { id: "doomsday_chair", name: "Le Siège de l'Apocalypse", cards: ["01183", "01183", "01184", "01185", "01185"] },
-        { id: "black_order", name: "L'ordre noir", cards: ["21085", "21086", "21087", "21088"] },
-        { id: "infinity_gauntlet", name: "Gant de l'Infini", cards: ["21129"], start_on_board: ["21129"], secondary_deck: ["21130", "21131", "21132", "21133", "21134", "21135"] },
-        { id: "children_of_thanos", name: "Enfant de thanos", cards: ["21125", "21126", "21127", "21128", "21128"] },
+        // --- Existants ---
+        { id: "bomb_scare", name: "Alerte à la Bombe", card_set_code: "bomb_scare" },
+        { id: "masters_of_evil", name: "Les Maîtres du Mal", card_set_code: "masters_of_evil" },
+        { id: "under_attack", name: "En Pleine Attaque", card_set_code: "under_attack" },
+        { id: "legions_of_hydra", name: "Légions de l'Hydra", card_set_code: "legions_of_hydra" },
+        { id: "doomsday_chair", name: "Le Siège de l'Apocalypse", card_set_code: "doomsday_chair" },
+        { id: "black_order", name: "L'ordre noir", card_set_code: "black_order" },
+        { id: "infinity_gauntlet", name: "Gant de l'Infini", card_set_code: "infinity_gauntlet", start_on_board: ["21129"], secondary_deck: ["21130", "21131", "21132", "21133", "21134", "21135"] },
+        { id: "children_of_thanos", name: "Enfant de thanos", card_set_code: "children_of_thanos" },
 
-        // --- Nouveaux Sets Modulaires (Structure vide à compléter via API) ---
+        // --- Nouveaux Sets Modulaires (Avec card_set_code complétés) ---
         
         // Bouffon Vert (Green Goblin)
-        { id: "goblin_gimmicks", name: "Gadgets du Bouffon", cards: [] },
-        { id: "a_mess_of_things", name: "Un Sacré Bazar", cards: [] },
-        { id: "power_drain", name: "Absorption de Pouvoir", cards: [] },
-        { id: "running_interference", name: "Interférences", cards: [] },
+        { id: "goblin_gimmicks", name: "Gadgets du Bouffon", card_set_code: "goblin_gimmicks" },
+        { id: "a_mess_of_things", name: "Un Sacré Bazar", card_set_code: "a_mess_of_things" },
+        { id: "power_drain", name: "Absorption de Pouvoir", card_set_code: "power_drain" },
+        { id: "running_interference", name: "Interférences", card_set_code: "running_interference" },
         
         // L'Avènement de Crâne Rouge (Rise of Red Skull)
-        { id: "experimental_weapons", name: "Armes Expérimentales", cards: ["04072","04073","04074","04075"] },
-        { id: "hydra_assault", name: "Assaut de l'Hydra", cards: ["04145","04145","04145","04146","04146","04147"] },
-        { id: "hydra_patrol", name: "Patrouille de l'Hydra", cards: ["04152","04152","04153","04153","04153","04154"] },
-        { id: "weapon_master", name: "Maître d'Armes", cards: ["04148","04149","04150","04150","04150","04151"] },
+        { id: "experimental_weapons", name: "Armes Expérimentales", card_set_code: "experimental_weapons" },
+        { id: "hydra_assault", name: "Assaut de l'Hydra", card_set_code: "hydra_assault" },
+        { id: "hydra_patrol", name: "Patrouille de l'Hydra", card_set_code: "hydra_patrol" },
+        { id: "weapon_master", name: "Maître d'Armes", card_set_code: "weapon_master" },
 
         // Kang
-        { id: "temporal", name: "Temporel", cards: [] },
-        { id: "anachronauts", name: "Anachronautes", cards: [] },
-        { id: "master_of_time", name: "Maître du Temps", cards: [] },
+        { id: "temporal", name: "Temporel", card_set_code: "temporal" },
+        { id: "anachronauts", name: "Anachronautes", card_set_code: "anachronauts" },
+        { id: "master_of_time", name: "Maître du Temps", card_set_code: "master_of_time" },
 
         // Convoitise Galactique (Galaxy's Most Wanted)
-        { id: "band_of_badoon", name: "Bande de Badoon", cards: [] },
-        { id: "menagerie_medley", name: "Méli-mélo de la Ménagerie", cards: [] },
-        { id: "galactic_artifacts", name: "Artéfacts Galactiques", cards: [] },
-        { id: "kree_militants", name: "Militants Kree", cards: [] },
-        { id: "space_pirates", name: "Pirates de l'Espace", cards: [] },
-        { id: "ship_command", name: "Commandement du Vaisseau", cards: [] },
-        { id: "badoon_headhunter", name: "Chasseur de Têtes Badoon", cards: [] },
+        { id: "band_of_badoon", name: "Bande de Badoon", card_set_code: "band_of_badoon" },
+        { id: "menagerie_medley", name: "Méli-mélo de la Ménagerie", card_set_code: "menagerie_medley" },
+        { id: "galactic_artifacts", name: "Artéfacts Galactiques", card_set_code: "galactic_artifacts" },
+        { id: "kree_militants", name: "Militants Kree", card_set_code: "kree_militants" },
+        { id: "space_pirates", name: "Pirates de l'Espace", card_set_code: "space_pirates" },
+        { id: "ship_command", name: "Commandement du Vaisseau", card_set_code: "ship_command" },
+        { id: "badoon_headhunter", name: "Chasseur de Têtes Badoon", card_set_code: "badoon_headhunter" },
 
         // L'Ombre du Titan Fou (Mad Titan's Shadow)
-        { id: "enchantress", name: "L'Enchanteresse", cards: [] },
-        { id: "galactic_armory", name: "Armurerie Galactique", cards: [] },
-        { id: "legions_of_hel", name: "Légions de Hel", cards: [] },
-        { id: "frost_giants", name: "Géants des Glaces", cards: [] },
+        { id: "enchantress", name: "L'Enchanteresse", card_set_code: "enchantress" },
+        { id: "galactic_armory", name: "Armurerie Galactique", card_set_code: "galactic_armory" },
+        { id: "legions_of_hel", name: "Légions de Hel", card_set_code: "legions_of_hel" },
+        { id: "frost_giants", name: "Géants des Glaces", card_set_code: "frost_giants" },
 
         // Le Capuchon (The Hood)
-        { id: "beasty_boys", name: "Les Bestiaux", cards: [] },
-        { id: "brothers_grimm", name: "Les Frères Grimm", cards: [] },
-        { id: "crossfires_crew", name: "L'Équipe de Crossfire", cards: [] },
-        { id: "mister_hyde", name: "Mister Hyde", cards: [] },
-        { id: "sinister_syndicate", name: "Le Syndicat Sinistre", cards: [] },
-        { id: "state_of_emergency", name: "État d'Urgence", cards: [] },
-        { id: "streets_of_mayhem", name: "Rues du Chaos", cards: [] },
-        { id: "wrecking_crew_modular", name: "Les Démolisseurs (Modulaire)", cards: [] },
+        { id: "beasty_boys", name: "Les Bestiaux", card_set_code: "beasty_boys" },
+        { id: "brothers_grimm", name: "Les Frères Grimm", card_set_code: "brothers_grimm" },
+        { id: "crossfires_crew", name: "L'Équipe de Crossfire", card_set_code: "crossfires_crew" },
+        { id: "mister_hyde", name: "Mister Hyde", card_set_code: "mister_hyde" },
+        { id: "sinister_syndicate", name: "Le Syndicat Sinistre", card_set_code: "sinister_syndicate" },
+        { id: "state_of_emergency", name: "État d'Urgence", card_set_code: "state_of_emergency" },
+        { id: "streets_of_mayhem", name: "Rues du Chaos", card_set_code: "streets_of_mayhem" },
+        { id: "wrecking_crew_modular", name: "Les Démolisseurs (Modulaire)", card_set_code: "wrecking_crew_modular" },
         
         // Motifs Sinistres (Sinister Motives)
-        { id: "city_in_chaos", name: "La Ville en Chaos", cards: [] },
-        { id: "down_to_earth", name: "Retour sur Terre", cards: [] },
-        { id: "goblin_gear", name: "Équipement du Bouffon", cards: [] },
-        { id: "guerilla_tactics", name: "Tactiques de Guérilla", cards: [] },
-        { id: "osborn_tech", name: "Technologie Osborn", cards: [] },
-        { id: "personal_nightmare", name: "Cauchemar Personnel", cards: [] },
-        { id: "sinister_assault", name: "Assaut Sinistre", cards: [] },
-        { id: "symbiotic_strength", name: "Force Symbiotique", cards: [] },
-        { id: "whispers_of_paranoia", name: "Murmures de Paranoïa", cards: [] },
+        { id: "city_in_chaos", name: "La Ville en Chaos", card_set_code: "city_in_chaos" },
+        { id: "down_to_earth", name: "Retour sur Terre", card_set_code: "down_to_earth" },
+        { id: "goblin_gear", name: "Équipement du Bouffon", card_set_code: "goblin_gear" },
+        { id: "guerilla_tactics", name: "Tactiques de Guérilla", card_set_code: "guerilla_tactics" },
+        { id: "osborn_tech", name: "Technologie Osborn", card_set_code: "osborn_tech" },
+        { id: "personal_nightmare", name: "Cauchemar Personnel", card_set_code: "personal_nightmare" },
+        { id: "sinister_assault", name: "Assaut Sinistre", card_set_code: "sinister_assault" },
+        { id: "symbiotic_strength", name: "Force Symbiotique", card_set_code: "symbiotic_strength" },
+        { id: "whispers_of_paranoia", name: "Murmures de Paranoïa", card_set_code: "whispers_of_paranoia" },
 
         // Genèse Mutante (Mutant Genesis)
-        { id: "brotherhood", name: "La Confrérie des Mauvais Mutants", cards: [] },
-        { id: "mystique", name: "Mystique", cards: [] },
-        { id: "zero_tolerance", name: "Tolérance Zéro", cards: [] },
-        { id: "sentinels", name: "Sentinelles", cards: [] },
-        { id: "acolytes", name: "Acolytes", cards: [] },
-        { id: "future_past", name: "Futur Antérieur", cards: [] },
+        { id: "brotherhood", name: "La Confrérie des Mauvais Mutants", card_set_code: "brotherhood" },
+        { id: "mystique", name: "Mystique", card_set_code: "mystique" },
+        { id: "zero_tolerance", name: "Tolérance Zéro", card_set_code: "zero_tolerance" },
+        { id: "sentinels", name: "Sentinelles", card_set_code: "sentinels" },
+        { id: "acolytes", name: "Acolytes", card_set_code: "acolytes" },
+        { id: "future_past", name: "Futur Antérieur", card_set_code: "future_past" },
 
         // MojoMania
-        { id: "crime", name: "Crime", cards: [] },
-        { id: "fantasy", name: "Fantasy", cards: [] },
-        { id: "horror", name: "Horreur", cards: [] },
-        { id: "sci_fi", name: "Science-Fiction", cards: [] },
-        { id: "sitcom", name: "Sitcom", cards: [] },
-        { id: "western", name: "Western", cards: [] },
+        { id: "crime", name: "Crime", card_set_code: "crime" },
+        { id: "fantasy", name: "Fantasy", card_set_code: "fantasy" },
+        { id: "horror", name: "Horreur", card_set_code: "horror" },
+        { id: "sci_fi", name: "Science-Fiction", card_set_code: "sci_fi" },
+        { id: "sitcom", name: "Sitcom", card_set_code: "sitcom" },
+        { id: "western", name: "Western", card_set_code: "western" },
 
         // NeXT Evolution
-        { id: "flight", name: "Vol", cards: [] },
-        { id: "super_strength", name: "Super Force", cards: [] },
-        { id: "telepathy", name: "Télépathie", cards: [] },
-        { id: "morlocks", name: "Morlocks", cards: [] },
-        { id: "mutant_peacemakers", name: "Pacificateurs Mutants", cards: [] },
-        { id: "mutant_provocateurs", name: "Provocateurs Mutants", cards: [] },
-        { id: "nasty_boys", name: "Les Mauvais Garçons", cards: [] },
-        { id: "reavers", name: "Les Reavers", cards: [] },
+        { id: "flight", name: "Vol", card_set_code: "flight" },
+        { id: "super_strength", name: "Super Force", card_set_code: "super_strength" },
+        { id: "telepathy", name: "Télépathie", card_set_code: "telepathy" },
+        { id: "morlocks", name: "Morlocks", card_set_code: "morlocks" },
+        { id: "mutant_peacemakers", name: "Pacificateurs Mutants", card_set_code: "mutant_peacemakers" },
+        { id: "mutant_provocateurs", name: "Provocateurs Mutants", card_set_code: "mutant_provocateurs" },
+        { id: "nasty_boys", name: "Les Mauvais Garçons", card_set_code: "nasty_boys" },
+        { id: "reavers", name: "Les Reavers", card_set_code: "reavers" },
 
         // L'Ère d'Apocalypse (Age of Apocalypse)
-        { id: "clan_akkaba", name: "Clan Akkaba", cards: [] },
-        { id: "hounds", name: "Les Chiens de Chasse", cards: [] },
-        { id: "infinites", name: "Les Infinis", cards: [] },
-        { id: "prelates", name: "Les Prélats", cards: [] },
-        { id: "savage_land", name: "Terre Sauvage", cards: [] },
-        { id: "dark_riders", name: "Les Cavaliers de l'Ombre", cards: [] }
+        { id: "clan_akkaba", name: "Clan Akkaba", card_set_code: "clan_akkaba" },
+        { id: "hounds", name: "Les Chiens de Chasse", card_set_code: "hounds" },
+        { id: "infinites", name: "Les Infinis", card_set_code: "infinites" },
+        { id: "prelates", name: "Les Prélats", card_set_code: "prelates" },
+        { id: "savage_land", name: "Terre Sauvage", card_set_code: "savage_land" },
+        { id: "dark_riders", name: "Les Cavaliers de l'Ombre", card_set_code: "dark_riders" }
     ],
 
     // --- SETS DE DIFFICULTÉ ---
@@ -337,9 +289,6 @@ const MARVEL_DB = {
         expert_1: { 
             cards: ["01191", "01192", "01193"] 
         },
-        
-        // --- À REMPLIR AVEC LES BONS ID MARVELCDB ---
-        // N'oublie pas d'inclure la carte "start_on_board" également dans "cards" pour que le script puisse la trouver !
         standard_2: {
             cards: ["24049", "24050", "24050", "24051", "24052", "24053", "24054", "24054"], 
             start_on_board: ["24049"]
