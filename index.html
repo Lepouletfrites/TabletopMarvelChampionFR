@@ -8,26 +8,11 @@
 </head>
 <body>
     
-    <!-- Panneau d'inspection latéral gauche -->
-    <div id="side-panel">
-        <button id="btn-close-side" style="align-self: flex-end; background: #34495e; padding: 4px 10px; margin-bottom: 8px;">✕ Fermer</button>
-        <div id="zoom-container">
-            <img id="zoom-img" src="https://placehold.co/300x420/2c3e50/FFF?text=Clique+sur+une+carte" alt="Zoom">
-        </div>
-        <div id="zoom-text">
-            <h2 id="zoom-title">---</h2>
-            <h4 id="zoom-traits"></h4>
-            <p id="zoom-desc">Sélectionne une carte pour la lire.</p>
-        </div>
-    </div>
-    <div id="side-panel-overlay"></div>
-
-    <!-- Zone principale -->
+    <!-- Zone principale unique -->
     <div id="main-area">
         <div id="ui-panel">
             <button id="btn-open-menu" style="background-color: #f39c12; color: #2c3e50; font-size: 1.1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">☰ Menu Principal</button>
             <button id="btn-undo" class="hidden" style="background-color: #e67e22; color: white; font-size: 1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-radius: 5px; cursor: pointer; border: none; font-weight: bold; margin-left: 10px;">↩️ Annuler</button>
-            <button id="btn-toggle-side" style="color: white; font-size: 1em; padding: 10px 12px; margin-left: 10px;">🔍 Carte</button>
             <button id="btn-add-nemesis" class="hidden" style="background-color: #8e44ad; color: white; font-size: 1em; padding: 10px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-radius: 5px; cursor: pointer; border: none; font-weight: bold; margin-left: 15px;">😈 Ajouter Némésis</button>
 
             <!-- Traqueur de Héros -->
@@ -43,9 +28,14 @@
             </div>
         </div>
 
+        <!-- ZOOM FLOTTANT GAUCHE -->
+        <div id="floating-zoom" class="hidden" title="Cliquez pour fermer">
+            <img id="zoom-img" src="" alt="Carte zoomée">
+        </div>
+
         <div id="board-wrapper">
             <div id="game-board">
-                <!-- PILES SECONDAIRES SUR LE PLATEAU (Affichées dynamiquement) -->
+                <!-- PILES SECONDAIRES SUR LE PLATEAU -->
                 <div id="board-hero-deck" class="board-pile pile-element hidden" data-pile="hero-sec-deck">
                     DECK<br>SPÉCIAL<br><span id="board-hero-deck-count">0</span>
                 </div>
@@ -53,7 +43,7 @@
                     DÉFAUSSE<br>SPÉCIALE<br><span id="board-hero-discard-count">0</span>
                 </div>
                 
-                <!-- On prévoit 3 emplacements pour des decks secondaires multiples côté méchant -->
+                <!-- Emplacements pour decks secondaires Méchant -->
                 <div id="board-villain-deck-0" class="board-pile pile-element hidden" data-pile="villain-sec-deck-0">DECK<br>SPÉCIAL<br><span id="board-villain-deck-count-0">0</span></div>
                 <div id="board-villain-discard-0" class="board-pile pile-element hidden" data-pile="villain-sec-discard-0">DÉFAUSSE<br>SPÉCIALE<br><span id="board-villain-discard-count-0">0</span></div>
 
@@ -87,7 +77,7 @@
             </div>
             
             <div id="hand-container">
-                <!-- BARRE DE GESTION DES JETONS CONDENSÉE -->
+                <!-- BARRE DE GESTION DES JETONS -->
                 <div id="token-bar">
                     <button data-type="damage" data-basetext="DÉGÂTS" class="token-btn" style="background-color:#c0392b;">DÉGÂTS</button>
                     <button data-type="threat" data-basetext="MENACE" class="token-btn" style="background-color:#f1c40f; color:#000;">MENACE</button>
@@ -185,8 +175,6 @@
                     
                     <label class="menu-label">Set de Difficulté :</label>
                     <div style="background: #2c3e50; padding: 10px; border-radius: 4px; border: 1px solid #7f8c8d; margin-bottom: 10px; font-size: 0.85em; display: flex; flex-direction: column; gap: 10px;">
-                        
-                        <!-- LIGNE STANDARD -->
                         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                             <b style="color: #3498db; width: 65px;">Standard:</b>
                             <label style="cursor: pointer;"><input type="radio" name="diff-std" value="none"> Aucun</label>
@@ -194,15 +182,12 @@
                             <label style="cursor: pointer;"><input type="radio" name="diff-std" value="standard_2"> II</label>
                             <label style="cursor: pointer;"><input type="radio" name="diff-std" value="standard_3"> III</label>
                         </div>
-                        
-                        <!-- LIGNE EXPERT -->
                         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                             <b style="color: #e74c3c; width: 65px;">Expert:</b>
                             <label style="cursor: pointer;"><input type="radio" name="diff-exp" value="none" checked> Aucun</label>
                             <label style="cursor: pointer;"><input type="radio" name="diff-exp" value="expert_1"> I</label>
                             <label style="cursor: pointer;"><input type="radio" name="diff-exp" value="expert_2"> II</label>
                         </div>
-                        
                     </div>
 
                     <label class="menu-label">Sets Modulaires :</label>
@@ -222,6 +207,7 @@
     </div>
 
     <script src="gamedata.js"></script>
+    <script src="cards.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

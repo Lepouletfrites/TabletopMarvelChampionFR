@@ -1,32 +1,35 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "1.9"; // Mise à jour de la version pour le cache
+const GAME_VERSION = "2.5"; // Suppression du panneau latéral, zoom flottant intégré
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
-// On considère qu'on est sur le web (ex: GitHub Pages) si le protocole est http/https ET qu'on n'est pas en local
 const isWebBrowser = window.location.protocol.startsWith('http') && 
                      !window.location.hostname.includes('localhost') && 
                      !window.location.hostname.includes('127.0.0.1');
 
-// Variable pour stocker le contenu de data/cards.json en mémoire
-let localDatabase = null; 
+// --- BASE DE DONNÉES LOCALE DES CARTES ---
+let localDatabase = {}; 
+
+if (typeof CARDS_DATA !== 'undefined') {
+    CARDS_DATA.forEach(card => {
+        localDatabase[card.code] = card;
+    });
+    console.log("✅ Base de données locale chargée ! (" + Object.keys(localDatabase).length + " cartes prêtes)");
+} else {
+    console.warn("⚠️ Attention: CARDS_DATA n'est pas défini. Vérifiez que cards.js est bien lié dans index.html.");
+}
 
 // --- CONFIGURATION & DOM CONSTANTS ---
 const boardWrapper = document.getElementById('board-wrapper');
 const board = document.getElementById('game-board');
 
-// Boutons du menu modal et panneau latéral
+// Boutons du menu modal
 const btnOpenMenu = document.getElementById('btn-open-menu');
-const btnUndo = document.getElementById('btn-undo'); // Bouton Undo
+const btnUndo = document.getElementById('btn-undo'); 
 const modalMenu = document.getElementById('modal-menu');
 const modalMenuClose = document.getElementById('modal-menu-close');
 const btnAddNemesis = document.getElementById('btn-add-nemesis');
 const btnResetGame = document.getElementById('btn-reset-game');
 const btnSaveGame = document.getElementById('btn-save-game'); 
-
-const btnToggleSide = document.getElementById('btn-toggle-side');
-const sidePanel = document.getElementById('side-panel');
-const sidePanelOverlay = document.getElementById('side-panel-overlay');
-const btnCloseSide = document.getElementById('btn-close-side');
 
 // Nouveaux éléments du Menu Principal
 const btnLoadCustomDeck = document.getElementById('btn-load-custom-deck');
@@ -46,11 +49,9 @@ const encounterDeckElement = document.getElementById('encounter-deck');
 const encounterDeckCountText = document.getElementById('encounter-deck-count');
 const encounterDiscardCountText = document.getElementById('encounter-discard-count');
 
-// Panneau d'inspection
+// Panneau d'inspection (Image uniquement)
+const floatingZoom = document.getElementById('floating-zoom');
 const zoomImg = document.getElementById('zoom-img');
-const zoomTitle = document.getElementById('zoom-title');
-const zoomTraits = document.getElementById('zoom-traits');
-const zoomDesc = document.getElementById('zoom-desc');
 
 // Menus contextuels
 const contextMenu = document.getElementById('context-menu');
@@ -172,11 +173,6 @@ if (btnUndo) {
     btnUndo.addEventListener('click', undo);
 }
 
-// Boutons d'interface mobile
-if(btnToggleSide) btnToggleSide.addEventListener('click', () => { sidePanel.classList.add('open'); sidePanelOverlay.classList.add('open'); });
-if(btnCloseSide) btnCloseSide.addEventListener('click', () => { sidePanel.classList.remove('open'); sidePanelOverlay.classList.remove('open'); });
-if(sidePanelOverlay) sidePanelOverlay.addEventListener('click', () => { sidePanel.classList.remove('open'); sidePanelOverlay.classList.remove('open'); });
-
 btnOpenMenu.addEventListener('click', () => modalMenu.classList.remove('hidden'));
 modalMenuClose.addEventListener('click', () => modalMenu.classList.add('hidden'));
 
@@ -213,7 +209,6 @@ function initMenus() {
 
     heroSelect.innerHTML = '<option value="">-- Sélectionner un Héros --</option>';
     MARVEL_DB.heroes.forEach(h => {
-        // N'affiche le héros QUE si le deck contient au moins 1 carte
         if (h.deck && h.deck.length > 0) {
             heroSelect.innerHTML += `<option value="${h.id}">${h.name}</option>`;
         }
@@ -221,7 +216,6 @@ function initMenus() {
 
     villainSelect.innerHTML = '<option value="">-- Sélectionner un Scénario --</option>';
     MARVEL_DB.villains.forEach(v => {
-        // N'affiche le méchant QUE si son deck de base ou ses stades contiennent des cartes
         if ((v.base_deck && v.base_deck.length > 0) || (v.stages && v.stages.length > 0)) {
             villainSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
         }
@@ -236,7 +230,6 @@ function initMenus() {
         <div style="height: 1px; background: #7f8c8d; margin: 5px 0;"></div>`;
         
         MARVEL_DB.modulars.forEach(m => {
-            // N'affiche le set modulaire QUE s'il contient des cartes
             if (m.cards && m.cards.length > 0) {
                 html += `<label style="cursor: pointer; display: flex; align-items: center; gap: 5px; color: #ecf0f1;">
                     <input type="checkbox" class="mod-checkbox" value="${m.id}"> 
@@ -249,20 +242,16 @@ function initMenus() {
 }
 
 // ==========================================
-// 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE
+// 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE ET GESTION D'IMAGES
 // ==========================================
 async function fetchAPI(cardCode) {
-    // 1. Plan A : On regarde si la carte est dans notre base de données locale (data/cards.json)
     if (localDatabase && localDatabase[cardCode]) {
         return localDatabase[cardCode];
     }
-
-    // 2. Plan B : Si on ne la trouve pas (ou si on est sur le Web sans le JSON), on tape l'API
     try {
         let resEN = await fetch(`https://marvelcdb.com/api/public/card/${cardCode}.json`);
         if (!resEN.ok) return null;
         let cardData = await resEN.json();
-
         try {
             let resFR = await fetch(`https://fr.marvelcdb.com/api/public/card/${cardCode}.json`);
             if (resFR.ok) {
@@ -272,7 +261,6 @@ async function fetchAPI(cardCode) {
                 if (frData.traits) cardData.traits = frData.traits;
             }
         } catch (e) {}
-
         return cardData;
     } catch (error) { 
         return null; 
@@ -284,15 +272,31 @@ function getImageUrl(cardData) {
     
     let code = cardData.code;
     let imageCode = code;
-    // Gestion de la face A pour les manigances principales
+    
+    // Gestion de la face A pour les manigances principales sur le Web
     if (cardData.type_code === 'main_scheme' && !code.endsWith('a') && !code.endsWith('b')) {
         imageCode = code + 'a';
     }
 
     const apiImageUrl = cardData.imagesrc ? `https://marvelcdb.com${cardData.imagesrc}` : `https://marvelcdb.com/bundles/cards/${imageCode}.png`;
-    const localImageUrl = `images/${imageCode}.png`;
+    
+    // --- CHEMIN LOCAL FR ---
+    let packName = cardData.pack_name || 'Sans Pack';
+    let octgnId = cardData.octgn_id || imageCode; // Fallback de sécurité
+    
+    // CORRECTION : Différencier la face A de la face B/C pour les images OCTGN
+    let localFileName = octgnId;
+    
+    // Si c'est le dos d'une carte (code se termine par "b" ou "c"), on rajoute le ".b" ou ".c"
+    if (code.endsWith('b')) {
+        localFileName += '.b'; 
+    } else if (code.endsWith('c')) {
+        localFileName += '.c';
+    }
 
-    // L'astuce magique : si on est sur GitHub Pages on force l'API, sinon on tape dans ton dossier local
+    // Chemin local basé sur ImageFr / Nom du Pack / OCTGN ID (.b) .jpg
+    const localImageUrl = `ImageFr/${packName}/${localFileName}.jpg`;
+
     if (isWebBrowser) {
         return apiImageUrl;
     } else {
@@ -353,7 +357,6 @@ btnLoadCustomDeck.addEventListener('click', async () => {
         let dbHeroId = null;
         let dbSecondaryDeck = null;
         if (typeof MARVEL_DB !== 'undefined') {
-            // Fait le lien avec la base de données locale pour trouver l'ID
             const match = MARVEL_DB.heroes.find(h => h.hero_code.replace(/[ab]$/,'') === heroCode.replace(/[ab]$/,''));
             if (match) {
                 dbHeroId = match.id;
@@ -419,16 +422,12 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         const heroDef = MARVEL_DB.heroes.find(h => h.id === currentHeroId);
         if (heroDef && heroDef.start_on_board) {
             for (let code of heroDef.start_on_board) {
-                // On cherche la carte dans le deck généré
                 let idx = myDeck.indexOf(code);
                 if (idx !== -1) {
-                    // Si on la trouve, on la retire du deck
                     myDeck.splice(idx, 1);
-                    // On la télécharge et on la pose
                     let cardData = await fetchAPI(code);
                     if (cardData) {
                         let cardDom = buildCardDOM(cardData);
-                        // On la décale légèrement à droite du héros
                         putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
                     }
                 }
@@ -444,10 +443,10 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         let hdd = document.getElementById('board-hero-discard');
         hd.classList.remove('hidden');
         hdd.classList.remove('hidden');
-        hd.style.left = (spawnX + 300) + "px"; // Décalé un peu plus loin à cause du start_on_board
+        hd.style.left = (spawnX + 300) + "px"; 
         hd.style.top = (spawnY) + "px";
         hdd.style.left = (spawnX + 440) + "px";
-        hd.style.top = (spawnY) + "px";
+        hdd.style.top = (spawnY) + "px";
     }
 
     if (currentHeroId && btnAddNemesis) {
@@ -472,7 +471,6 @@ if (btnAddNemesis) {
         btnAddNemesis.disabled = true;
 
         try {
-            // Spawn au centre parfait
             const spawnX = CENTER_X;
             const spawnY = CENTER_Y;
 
@@ -489,7 +487,6 @@ if (btnAddNemesis) {
                     if (cardData.type_code === 'minion') minionDeployed = true;
 
                     const dom = buildCardDOM(cardData);
-                    // Placement légèrement décalé au centre
                     putOnBoardAt(dom, spawnX + (Math.random() * 100 - 50), spawnY + (Math.random() * 100 - 50), false);
                 } else {
                     encounterDeck.push(cardData.code); 
@@ -514,7 +511,6 @@ if (btnAddNemesis) {
 btnLoadVillain.addEventListener('click', async () => {
     const vId = villainSelect.value;
     
-    // Récupération des difficultés cochées
     const stdDiff = document.querySelector('input[name="diff-std"]:checked').value;
     const expDiff = document.querySelector('input[name="diff-exp"]:checked').value;
     const isExpert = (expDiff !== 'none');
@@ -529,9 +525,8 @@ btnLoadVillain.addEventListener('click', async () => {
     currentVillainSchemes = villainDef.schemes;
     currentSchemeIndex = 0;
 
-    // POSITIONNEMENT ABSOLU POUR ALIGNEMENT PARFAIT
     const spawnX = CENTER_X;
-    const spawnY = CENTER_Y - 400; // Espace vers le haut
+    const spawnY = CENTER_Y - 400; 
 
     if (currentVillainStages.length > currentVillainStageIndex) {
         let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
@@ -561,7 +556,7 @@ btnLoadVillain.addEventListener('click', async () => {
     villainSecDiscards = [[], [], []];
     
     function deployVillainSecDeck(deckArray, title) {
-        if (vSecCount >= 3) return; // Limite à 3 decks
+        if (vSecCount >= 3) return; 
         villainSecDecks[vSecCount] = [...deckArray];
         shuffleArray(villainSecDecks[vSecCount]);
         
@@ -570,11 +565,10 @@ btnLoadVillain.addEventListener('click', async () => {
         vd.classList.remove('hidden');
         vdd.classList.remove('hidden');
         
-        // On décale loin à droite pour ne pas gêner les "start_on_board"
         vd.style.left = (spawnX + 300 + (vSecCount * 150)) + "px";
         vd.style.top = (spawnY) + "px";
         vdd.style.left = (spawnX + 300 + (vSecCount * 150)) + "px";
-        vdd.style.top = (spawnY + 180) + "px"; // Défausse en dessous
+        vdd.style.top = (spawnY + 180) + "px";
         
         if (title) vd.innerHTML = `${title}<br><span id="board-villain-deck-count-${vSecCount}">0</span>`;
         vSecCount++;
@@ -586,10 +580,8 @@ btnLoadVillain.addEventListener('click', async () => {
 
     encounterDeck = [...villainDef.base_deck];
     
-    // On prépare une liste des cartes qui doivent démarrer en jeu
     let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
 
-    // Ajout des sets de difficulté choisis via les Checkboxes (Radios)
     if (stdDiff !== 'none' && MARVEL_DB.difficulty[stdDiff]) {
         encounterDeck.push(...(MARVEL_DB.difficulty[stdDiff].cards || []));
         if (MARVEL_DB.difficulty[stdDiff].start_on_board) {
@@ -618,21 +610,16 @@ btnLoadVillain.addEventListener('click', async () => {
             if (modDef.secondary_deck) {
                 deployVillainSecDeck(modDef.secondary_deck, modDef.name.substring(0, 15).toUpperCase());
             }
-            // Si le set modulaire a lui aussi des cartes "start_on_board", on les ajoute à la liste
             if (modDef.start_on_board) {
                 villainCardsToSpawn.push(...modDef.start_on_board);
             }
         }
     });
 
-    // PÊCHE DES CARTES START_ON_BOARD DANS LE DECK RENCONTRE
     for (let code of villainCardsToSpawn) {
         let idx = encounterDeck.indexOf(code);
         if (idx !== -1) {
-            // Retire la carte du deck rencontre
             encounterDeck.splice(idx, 1);
-            
-            // Permet de gérer la présence potentielle de faces B (pour Standard II / III)
             let baseCode = code.replace(/[ab]$/, '');
             let frontData = await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode);
             let backData = await fetchAPI(baseCode + 'b');
@@ -643,8 +630,6 @@ btnLoadVillain.addEventListener('click', async () => {
                 if (backData) {
                     cardDom.dataset.cardDataB = JSON.stringify(backData);
                 }
-                
-                // On les pose légèrement à droite du méchant principal
                 putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
             }
         }
@@ -660,7 +645,6 @@ btnLoadVillain.addEventListener('click', async () => {
 // 4. SYSTÈME DE JEU ET JETONS
 // ==========================================
 
-// --- UI DES BOUTONS DE JETONS ---
 document.querySelectorAll('.token-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         e.stopPropagation(); 
@@ -715,7 +699,7 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
     currentPhaseIndex = (currentPhaseIndex + 1) % phases.length;
     phases[currentPhaseIndex].classList.add('active');
 
-    if (currentPhaseIndex === 1) { // 2. Fin de Phase Joueur (Redressement joueur uniquement)
+    if (currentPhaseIndex === 1) { 
         document.querySelectorAll('.card.exhausted').forEach(card => {
             if (card.dataset.faction !== 'encounter' && card.dataset.faction !== 'villain') {
                 card.classList.remove('exhausted');
@@ -723,23 +707,20 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
         });
         await drawToHandSize();
     }
-    if (currentPhaseIndex === 2) { // 3. Ajout de Menace
+    if (currentPhaseIndex === 2) { 
         let mainScheme = document.getElementById('main-scheme-element'); 
         if (mainScheme) {
-            let threatToAdd = 1; // Valeur par défaut d'ajout de menace (1 par joueur)
+            let threatToAdd = 1; 
             let msData = JSON.parse(mainScheme.dataset.cardDataB || mainScheme.dataset.cardDataA || mainScheme.dataset.cardData);
             
-            // Si la manigance principale définit explicitement une valeur différente
             if (msData && msData.escalation_threat !== undefined) {
                 threatToAdd = msData.escalation_threat;
             }
 
             let accelerationCount = parseInt(mainScheme.dataset.acceleration) || 0;
-            // On vérifie les icônes d'Accélération sur les cartes face visible
             document.querySelectorAll('.card').forEach(c => {
                 if (c.dataset.cardData && c.dataset.flipped !== 'true') {
                     let d = JSON.parse(c.dataset.cardData);
-                    
                     if (d.scheme_acceleration) {
                         accelerationCount += d.scheme_acceleration;
                     } 
@@ -754,33 +735,27 @@ document.getElementById('btn-next-phase').addEventListener('click', async () => 
             syncTokenVisuals(mainScheme);
         }
     }
-    if (currentPhaseIndex === 3) { // 4. Activation du Méchant (Carte de Boost automatique)
+    if (currentPhaseIndex === 3) { 
         await drawCard('encounter');
     }
-    if (currentPhaseIndex === 4) { // 5. Cartes Rencontre (Distribution avec détection de l'API pour Hazard)
+    if (currentPhaseIndex === 4) { 
         let encounterCardsToDraw = 1;
-        
-        // BONUS: On vérifie s'il y a des cartes avec l'icône Hazard/Aléa face visible
         document.querySelectorAll('.card').forEach(c => {
             if (c.dataset.cardData && c.dataset.flipped !== 'true') {
                 let d = JSON.parse(c.dataset.cardData);
-                
-                // L'API MarvelCDB stocke le nombre d'icônes d'Aléa dans la propriété "scheme_hazard"
                 if (d.scheme_hazard) {
                     encounterCardsToDraw += d.scheme_hazard;
                 } 
-                // Fallback de sécurité dans le texte ou les mots clés
                 else if (d.text && (d.text.toLowerCase().includes('[hazard]') || d.text.toLowerCase().includes('icon-hazard') || d.text.toLowerCase().includes('aléa'))) {
                     encounterCardsToDraw++;
                 }
             }
         });
-        
         for (let i = 0; i < encounterCardsToDraw; i++) {
             await drawCard('encounter');
         }
     }
-    if (currentPhaseIndex === 5) { // 6. Fin du Round (Redressement Méchant)
+    if (currentPhaseIndex === 5) { 
         document.querySelectorAll('.card.exhausted').forEach(card => {
             if (card.dataset.faction === 'encounter' || card.dataset.faction === 'villain') {
                 card.classList.remove('exhausted');
@@ -797,7 +772,6 @@ async function drawToHandSize() {
     const cardsToDraw = currentHandSize - cardsInHand;
     
     for (let i = 0; i < cardsToDraw; i++) {
-        // Arrêt de sécurité si les deux decks sont vides
         if (myDeck.length === 0 && discardPile.length === 0) break;
         await drawCard('player');
     }
@@ -813,10 +787,9 @@ for (let i = 0; i < 3; i++) {
     if (d) d.addEventListener('click', () => { drawCard('villain-sec-' + i); saveGameState(); });
 }
 
-// Nouvelle fonction dédiée pour gérer le remélange automatique et les alertes de deck vide
 function reshufflePile(type, pile, discard) {
     pile.push(...discard);
-    discard.length = 0; // vide la défausse
+    discard.length = 0; 
     shuffleArray(pile);
     updateDeckCounters();
     
@@ -848,19 +821,17 @@ async function drawCard(type) {
     
     if (!pile) return;
 
-    // Tentative de mélange avant de piocher si le deck était DÉJÀ vide au moment de cliquer
     if (pile.length === 0) {
         if (discard && discard.length > 0) {
             reshufflePile(type, pile, discard);
         } else {
-            return; // Impossible de piocher
+            return; 
         }
     }
 
     const code = pile.pop();
     updateDeckCounters();
 
-    // Vérification IMMÉDIATE après la pioche : si la carte piochée était la dernière du deck
     if (pile.length === 0 && discard && discard.length > 0) {
         reshufflePile(type, pile, discard);
     }
@@ -884,7 +855,6 @@ async function drawCard(type) {
         putOnBoardAt(cardDOM, x, y + 180, false); 
     } else {
         const rect = boardWrapper.getBoundingClientRect();
-        // Les cartes rencontres apparaissent au centre de l'écran avec un léger décalage pour éviter la superposition parfaite
         const offsetX = (Math.random() * 60 - 30);
         const offsetY = (Math.random() * 60 - 30);
         const spawnX = (rect.width / 2 - boardX + offsetX) / scale;
@@ -893,7 +863,6 @@ async function drawCard(type) {
     }
 }
 
-// Fonction pour mettre à jour les visuels des défausses (pour afficher la dernière carte jetée)
 async function updateDiscardImages() {
     async function setPileImage(pileArray, elementId) {
         let el = document.getElementById(elementId);
@@ -905,16 +874,15 @@ async function updateDiscardImages() {
                 el.style.backgroundImage = `url('${getImageUrl(data)}')`;
                 el.style.backgroundSize = 'cover';
                 el.style.backgroundPosition = 'center';
-                // Ombre au texte pour qu'il reste visible par-dessus la carte
                 el.style.textShadow = '1px 1px 3px black, -1px -1px 3px black, 1px -1px 3px black, -1px 1px 3px black';
                 el.style.color = 'white';
-                el.style.border = '2px solid #fff'; // Aspect de carte posée
+                el.style.border = '2px solid #fff'; 
             }
         } else {
             el.style.backgroundImage = 'none';
             el.style.textShadow = 'none';
-            el.style.color = ''; // Retour au style par défaut (CSS)
-            el.style.border = ''; // Retour au pointillé par défaut
+            el.style.color = ''; 
+            el.style.border = ''; 
         }
     }
     
@@ -944,7 +912,6 @@ function updateDeckCounters() {
         if (dd && villainSecDiscards[i]) dd.innerText = villainSecDiscards[i].length;
     }
     
-    // Appel pour rafraîchir l'image des défausses
     updateDiscardImages();
 }
 
@@ -972,7 +939,6 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     let frontUrl = getImageUrl(cardData);
     let backUrl = explicitBackUrl || defaultBack;
 
-    // Détermination de la menace de départ pour Manigances Annexes ET Principales
     let initThreat = 0;
     if (cardData.type_code === 'side_scheme' || cardData.type_code === 'main_scheme') {
         if (cardData.base_threat !== undefined) {
@@ -1019,7 +985,6 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
 
 function syncTokenVisuals(card) {
     const isFlipped = card.dataset.flipped === 'true';
-    // Si la carte a une face B (Héros, Manigance principale, Environnement), on ne cache jamais les jetons
     const isFaceDown = isFlipped && !card.dataset.cardDataB;
     
     const dmg = parseInt(card.dataset.damage) || 0;
@@ -1032,7 +997,6 @@ function syncTokenVisuals(card) {
     const genTok = card.querySelector('.generic-token');
     const accTok = card.querySelector('.acceleration-token');
     
-    // On cache les jetons si la carte est réellement face cachée
     if(dmgTok) { dmgTok.innerText = dmg; dmgTok.classList.toggle('hidden', dmg <= 0 || isFaceDown); }
     if(thrtTok) { thrtTok.innerText = thrt; thrtTok.classList.toggle('hidden', thrt <= 0 || isFaceDown); }
     if(genTok) { genTok.innerText = gen; genTok.classList.toggle('hidden', gen <= 0 || isFaceDown); }
@@ -1082,7 +1046,7 @@ function putOnBoardAt(cardElement, x, y, faceDown = false) {
     cardElement.querySelector('.card-front').src = faceDown ? cardElement.dataset.backUrl : cardElement.dataset.frontUrl;
     
     updateCardOrientation(cardElement);
-    syncTokenVisuals(cardElement); // Met à jour l'affichage des jetons à l'apparition
+    syncTokenVisuals(cardElement); 
     board.appendChild(cardElement);
 }
 
@@ -1122,7 +1086,6 @@ function discardCard(cardElement, forcedPile = null) {
     updateDeckCounters();
 }
 
-// --- INTERACTIONS DE CARTES & DRAG & DROP ---
 function setupCardInteractions(card) {
     card.addEventListener('dblclick', () => {
         if (activeTokenType) return; 
@@ -1190,11 +1153,8 @@ menuNextScheme.addEventListener('click', async () => {
         let x = parseFloat(targetCard.style.left);
         let y = parseFloat(targetCard.style.top);
         
-        // On récupère le nombre de jetons d'accélération présents sur l'ancienne manigance
         let carryOverAcceleration = parseInt(targetCard.dataset.acceleration) || 0;
-        
         targetCard.remove(); 
-        
         currentSchemeIndex++;
         let baseCode = currentVillainSchemes[currentSchemeIndex].replace(/[ab]$/, '');
         let frontData = await fetchAPI(baseCode); 
@@ -1206,9 +1166,7 @@ menuNextScheme.addEventListener('click', async () => {
             if (backData) sDom.dataset.cardDataB = JSON.stringify(backData);
             sDom.id = `main-scheme-element`;
             
-            // Transfert des jetons d'accélération sur le stade suivant de la manigance !
             sDom.dataset.acceleration = carryOverAcceleration;
-            
             putOnBoardAt(sDom, x, y, false);
         }
         saveGameState();
@@ -1220,9 +1178,7 @@ menuNextVillain.addEventListener('click', async () => {
     if (targetCard) {
         let x = parseFloat(targetCard.style.left);
         let y = parseFloat(targetCard.style.top);
-        
         targetCard.remove();
-        
         currentVillainStageIndex++;
         let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
         if (vData) {
@@ -1236,10 +1192,10 @@ menuNextVillain.addEventListener('click', async () => {
 
 function makeDraggable(element) {
     let isDragging = false, startX, startY;
-    let lastTouchEnd = 0; // Ajout pour empêcher le double-clic (ghost click) sur tablette
+    let lastTouchEnd = 0; 
     
     element.onmousedown = (e) => {
-        if (Date.now() - lastTouchEnd < 500) return; // On ignore l'événement souris si un touch vient d'avoir lieu
+        if (Date.now() - lastTouchEnd < 500) return; 
         if (e.target.closest('#phase-panel') || e.target.closest('#ui-panel')) return;
         if (e.button === 2) return;
         e.preventDefault(); e.stopPropagation();
@@ -1300,7 +1256,7 @@ function makeDraggable(element) {
     }
 
     function closeTouchDragElement(e) {
-        lastTouchEnd = Date.now(); // Marque la fin du touch pour bloquer le mousedown simulé
+        lastTouchEnd = Date.now(); 
         document.removeEventListener('touchmove', elementTouchDrag);
         document.removeEventListener('touchend', closeTouchDragElement);
         if (e.changedTouches.length > 0) {
@@ -1333,19 +1289,7 @@ function makeDraggable(element) {
             } else {
                 const isFlipped = element.dataset.flipped === 'true';
                 const currentImg = isFlipped ? element.dataset.backUrl : element.dataset.frontUrl;
-                let dataToDisplay = null;
-                
-                if (isFlipped) {
-                    if (element.dataset.cardDataB) {
-                        dataToDisplay = element.dataset.cardDataB;
-                    } else {
-                        dataToDisplay = JSON.stringify({ name: "Carte face cachée", text: "Les informations de cette carte sont masquées pour le moment." });
-                    }
-                } else {
-                    dataToDisplay = element.dataset.cardDataA || element.dataset.cardData;
-                }
-                
-                updateSidePanel(dataToDisplay, currentImg);
+                showZoom(currentImg);
             }
         }
     }
@@ -1383,21 +1327,13 @@ document.getElementById('menu-flip').addEventListener('click', () => {
         targetCard.dataset.flipped = willBeFlipped;
         const newSrc = willBeFlipped ? targetCard.dataset.backUrl : targetCard.dataset.frontUrl;
         targetCard.querySelector('.card-front').src = newSrc;
-        
-        let dataToDisplay = null;
-        if (willBeFlipped) {
-            if (targetCard.dataset.cardDataB) dataToDisplay = targetCard.dataset.cardDataB;
-            else dataToDisplay = JSON.stringify({ name: "Carte face cachée", text: "Les informations de cette carte sont masquées pour le moment." });
-        } else {
-            dataToDisplay = targetCard.dataset.cardDataA || targetCard.dataset.cardData;
-        }
 
-        updateSidePanel(dataToDisplay, newSrc);
+        showZoom(newSrc);
 
         if (targetCard.id === 'hero-card-element') heroHandSizeSpan.innerText = willBeFlipped ? targetCard.dataset.handSizeB : targetCard.dataset.handSizeA;
         
         updateCardOrientation(targetCard);
-        syncTokenVisuals(targetCard); // Fait apparaître ou disparaître les jetons selon la face visible
+        syncTokenVisuals(targetCard); 
     }
     hideAllMenus(); saveGameState();
 });
@@ -1513,11 +1449,7 @@ async function openInspectModal(pileType) {
         item.innerHTML = `<img src="${getImageUrl(cardData)}" alt="${cardData.name}" title="Cliquer pour afficher dans le panneau de zoom"/><button style="margin-top: 5px; width: 100%;">Mettre en jeu</button>`;
         
         item.querySelector('img').addEventListener('click', () => {
-            updateSidePanel(JSON.stringify(cardData), getImageUrl(cardData));
-            if (window.innerWidth <= 768) {
-                document.getElementById('side-panel').classList.add('open');
-                document.getElementById('side-panel-overlay').classList.add('open');
-            }
+            showZoom(getImageUrl(cardData));
         });
 
         item.querySelector('button').addEventListener('click', () => {
@@ -1557,7 +1489,7 @@ boardWrapper.addEventListener('mousedown', (e) => {
 window.addEventListener('mousemove', (e) => {
     if (!isPanning) return; hasPanned = true; boardX = e.clientX - startPanX; boardY = e.clientY - startPanY; updateCamera();
 });
-window.addEventListener('mouseup', () => { if (isPanning && !hasPanned) clearSidePanel(); isPanning = false; });
+window.addEventListener('mouseup', () => { if (isPanning && !hasPanned) hideZoom(); isPanning = false; });
 
 // --- CAMÉRA (MOBILE : GLISSEMENT ET PINCEMENT) ---
 let initialPinchDistance = null;
@@ -1615,7 +1547,7 @@ boardWrapper.addEventListener('touchmove', (e) => {
 boardWrapper.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) { initialPinchDistance = null; }
     if (e.touches.length === 0) { 
-        if (isPanning && !hasPanned) clearSidePanel(); 
+        if (isPanning && !hasPanned) hideZoom(); 
         isPanning = false; 
     }
 });
@@ -1628,18 +1560,20 @@ function getPinchDistance(touches) {
 
 function updateCamera() { board.style.transform = `translate(${boardX}px, ${boardY}px) scale(${scale})`; }
 
-function updateSidePanel(cardDataString, imageUrl) {
-    if (!cardDataString) return;
-    const cardData = JSON.parse(cardDataString);
-    let cleanText = cardData.text ? cardData.text.replace(/\[.*?\]/g, '') : "Aucun texte.";
-    zoomImg.src = imageUrl; zoomTitle.innerText = cardData.name || 'Inconnu';
-    zoomTraits.innerText = cardData.traits || ''; zoomDesc.innerHTML = cleanText.replace(/\n/g, '<br>');
+// NOUVELLES FONCTIONS DE ZOOM
+function showZoom(imageUrl) {
+    if (imageUrl) {
+        zoomImg.src = imageUrl;
+        floatingZoom.classList.remove('hidden');
+    }
 }
 
-function clearSidePanel() {
-    zoomImg.src = "https://placehold.co/300x420/2c3e50/FFF?text=Clique+sur+une+carte";
-    zoomTitle.innerText = "---"; zoomTraits.innerText = ""; zoomDesc.innerText = "Sélectionne une carte.";
+function hideZoom() {
+    floatingZoom.classList.add('hidden');
 }
+
+// Clic sur l'image zoomée pour la fermer
+floatingZoom.addEventListener('click', hideZoom);
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; }
@@ -1862,21 +1796,5 @@ function loadGameState() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // On tente de charger le JSON local généré par ton script Python au tout début
-    try {
-        let res = await fetch('data/cards.json');
-        if (res.ok) {
-            let cardsArray = await res.json();
-            localDatabase = {};
-            // On transforme le tableau en dictionnaire pour trouver les cartes instantanément
-            cardsArray.forEach(card => {
-                localDatabase[card.code] = card;
-            });
-            console.log("✅ Base de données locale chargée ! (" + cardsArray.length + " cartes prêtes)");
-        }
-    } catch (e) {
-        console.log("ℹ️ Fichier local non trouvé (normal si sur GitHub Pages), utilisation de l'API prioritaire.");
-    }
-
     loadGameState();
 });

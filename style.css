@@ -4,25 +4,41 @@ body { font-family: 'Arial', sans-serif; color: white; overflow: hidden; display
 
 #board-wrapper, .card, .pile-element { touch-action: none; }
 #hand-area { touch-action: pan-x; }
-#side-panel, #modal-cards-container { touch-action: pan-y; }
+#modal-cards-container { touch-action: pan-y; }
 
-#btn-toggle-side { display: none; }
-#btn-close-side { display: none; }
-#side-panel-overlay { display: none; }
-
-#side-panel { width: 260px; max-width: 30vw; background-color: #1a252f; border-right: 3px solid #000; display: flex; flex-direction: column; padding: 10px; z-index: 10000; overflow-y: auto; flex-shrink: 0; }
-#zoom-container img { width: 100%; border-radius: 8px; margin-bottom: 10px; }
-#zoom-title { margin: 0 0 5px 0; color: #e74c3c; font-size: 1.1em; text-transform: uppercase; }
-#zoom-traits { margin: 0 0 10px 0; font-style: italic; color: #bdc3c7; font-size: 0.85em; }
-#zoom-desc { font-size: 0.85em; line-height: 1.4; text-align: justify; }
-
-#main-area { flex: 1; display: flex; flex-direction: column; position: relative; min-width: 0; }
+/* La zone de jeu prend 100% de l'écran */
+#main-area { flex: 1; display: flex; flex-direction: column; position: relative; min-width: 0; width: 100%; }
 
 #ui-panel { background: #2c3e50; padding: 10px; display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #000; z-index: 10; flex-wrap: wrap; }
 button { padding: 8px 12px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.9em; }
 button:hover { filter: brightness(1.1); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 .hidden { display: none !important; }
+
+/* --------------------------------- */
+/* NOUVEAU ZOOM FLOTTANT GAUCHE      */
+/* --------------------------------- */
+#floating-zoom {
+    position: absolute;
+    left: 20px;
+    top: 80px; /* Se place juste en dessous de la barre d'UI */
+    width: 320px;
+    max-width: 45vw;
+    z-index: 1000;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    border: 2px solid #fff;
+    background: #1a252f;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
+}
+#floating-zoom img {
+    width: 100%;
+    border-radius: 10px;
+    display: block;
+}
+/* --------------------------------- */
 
 #hero-tracker { display: flex; background: #1a252f; padding: 5px 10px; border-radius: 5px; border: 1px solid #34495e; gap: 15px; align-items: center; }
 .tracker-item { display: flex; align-items: center; gap: 5px; }
@@ -41,15 +57,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 #board-wrapper:active { cursor: grabbing; }
 #game-board { position: absolute; width: 4000px; height: 4000px; background-color: #34495e; background-image: radial-gradient(#2c3e50 20%, transparent 20%); background-size: 50px 50px; transform-origin: top left; }
 
-/* PILES SECONDAIRES SUR LE PLATEAU */
 .board-pile { position: absolute; width: 120px; height: 168px; border-radius: 6px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; text-align: center; font-size: 0.8em; cursor: pointer; user-select: none; z-index: 5; box-shadow: 2px 2px 8px rgba(0,0,0,0.6); }
 #board-hero-deck { background: linear-gradient(135deg, #8e44ad, #9b59b6); border: 2px solid #fff; }
 #board-hero-discard { background: #2c3e50; border: 2px dashed #9b59b6; color: #fff; }
 
-/* Ajout d'une couleur globale pour les piles de méchants générées dynamiquement */
 .board-pile[data-pile^="villain-sec-deck"] { background: linear-gradient(135deg, #d35400, #e67e22); border: 2px solid #fff; }
 .board-pile[data-pile^="villain-sec-discard"] { background: #2c3e50; border: 2px dashed #e67e22; color: #e67e22; }
-
 
 #bottom-hud { height: 165px; background-color: #2c3e50; border-top: 3px solid #000; display: flex; z-index: 50; box-shadow: 0 -4px 10px rgba(0,0,0,0.5); min-width: 0; }
 .deck-area { width: 90px; display: flex; justify-content: center; align-items: center; padding: 5px; flex-shrink: 0; }
@@ -57,7 +70,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 #hand-container { flex: 1; display: flex; flex-direction: column; min-width: 0; border-left: 1px solid #1a252f; border-right: 1px solid #1a252f; }
 #hand-area { flex: 1; display: flex; gap: 8px; padding: 10px; overflow-x: auto; align-items: center; justify-content: flex-start; }
 
-/* BARRE DE JETONS */
 #token-bar { height: 38px; background: #1a252f; display: flex; gap: 5px; padding: 4px 10px; overflow-x: auto; align-items: center; border-bottom: 2px solid #000; }
 #token-bar::-webkit-scrollbar { height: 4px; }
 #token-bar::-webkit-scrollbar-thumb { background: #7f8c8d; border-radius: 4px; }
@@ -66,7 +78,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 #deck, #discard-pile, #encounter-deck, #encounter-discard-pile { width: 70px; height: 100px; border-radius: 6px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; text-align: center; font-size: 0.75em; cursor: pointer; user-select: none; }
 
-/* NOUVEAUX DECKS AVEC DOS DE CARTES ET OMBRE POUR LE TEXTE */
 #deck { background-color: #2980b9; background-image: url('assets/player_back.jpg'); background-size: cover; background-position: center; border: 2px solid #fff; text-shadow: 1px 1px 3px #000, -1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000; color: white; }
 #encounter-deck { background-color: #c0392b; background-image: url('assets/encounter_back.jpg'); background-size: cover; background-position: center; border: 2px solid #fff; text-shadow: 1px 1px 3px #000, -1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000; color: white; }
 
@@ -86,7 +97,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .card.is-dragging-hud { position: fixed !important; pointer-events: none !important; z-index: 9999 !important; transition: none !important; width: 85px; height: 119px; transform: none !important; }
 .card.landscape.is-dragging-hud { width: 119px; height: 85px; }
 
-/* NOUVEAUX JETONS EMPILABLES */
 .token { position: absolute; font-weight: bold; width: 26px; height: 26px; font-size: 0.85em; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; z-index: 10; pointer-events: none; }
 .damage-token { top: -8px; right: -8px; background-color: #c0392b; color: white; }
 .threat-token { top: -8px; left: -8px; background-color: #f1c40f; color: #2c3e50; }
@@ -104,7 +114,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .menu-item:hover { background-color: #3498db; color: white; }
 .menu-separator { height: 1px; background-color: #bdc3c7; margin: 5px 0; }
 
-/* MODIFICATIONS MODALES ET TACTILE */
 .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(0,0,0,0.75); display: flex; justify-content: center; align-items: center; z-index: 20000; padding: 10px; touch-action: none; }
 #modal-inspect { background: transparent; pointer-events: auto; }
 .modal-content { background: #2c3e50; width: 100%; max-width: 450px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 5px 20px rgba(0,0,0,0.8); touch-action: pan-y; pointer-events: auto; cursor: default; }
@@ -122,7 +131,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .inspect-card-item button { padding: 4px 6px; font-size: 0.75em; width: 100%; pointer-events: auto; }
 
 @media (max-width: 1024px) {
-    #side-panel { width: 220px; }
     #phase-panel { width: 190px; font-size: 0.9em; }
     #bottom-hud { height: 145px; }
     .deck-area { width: 76px; }
@@ -132,6 +140,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     .card.in-hand { width: 72px; height: 101px; }
     .card.landscape.in-hand { width: 101px; height: 72px; }
     .board-pile { width: 100px; height: 140px; font-size: 0.7em; }
+    
+    #floating-zoom { width: 280px; }
 }
 
 @media (max-width: 768px) {
@@ -139,12 +149,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     #btn-open-menu { font-size: 0.95em !important; padding: 8px 10px !important; }
     #hero-tracker { margin-left: 0 !important; width: 100%; order: 3; justify-content: space-around; }
 
-    #btn-toggle-side { display: inline-block; background-color: #34495e; }
-    #btn-close-side { display: inline-block; }
-    #side-panel { position: fixed; top: 0; left: 0; height: 100%; height: 100dvh; width: 82vw; max-width: 320px; transform: translateX(-100%); transition: transform 0.25s ease; z-index: 20000; box-shadow: 4px 0 15px rgba(0,0,0,0.6); }
-    #side-panel.open { transform: translateX(0); }
-    #side-panel-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 19999; }
-    #side-panel-overlay.open { display: block; }
+    #floating-zoom { width: 220px; max-width: 70vw; left: 10px; top: 95px; }
 
     #phase-panel { width: 150px; max-width: 50vw; top: 6px; right: 6px; padding: 6px; }
     #phase-panel h3 { font-size: 0.8em; }
@@ -171,11 +176,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 @media (max-width: 480px) {
-    #side-panel { width: 88vw; }
     #deck, #discard-pile, #encounter-deck, #encounter-discard-pile { width: 44px; height: 62px; font-size: 0.58em; }
     .card { width: 70px; height: 98px; }
     .card.landscape { width: 98px; height: 70px; }
     .card.in-hand { width: 50px; height: 70px; }
     .card.landscape.in-hand { width: 70px; height: 50px; }
     .board-pile { width: 70px; height: 98px; font-size: 0.6em; }
+    
+    #floating-zoom { width: 180px; max-width: 80vw; }
 }
