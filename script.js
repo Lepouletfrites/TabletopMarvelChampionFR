@@ -1,10 +1,8 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "2.7"; // Némésis débloquée pour tous les héros (même via URL) et sauvegarde de l'état
+const GAME_VERSION = "2.8"; // Némésis débloquée pour tous les héros (même via URL) et sauvegarde de l'état
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
-const isWebBrowser = window.location.protocol.startsWith('http') && 
-                     !window.location.hostname.includes('localhost') && 
-                     !window.location.hostname.includes('127.0.0.1');
+const isWebBrowser = false;
 
 // --- BASE DE DONNÉES LOCALE DES CARTES ---
 let localDatabase = {}; 
