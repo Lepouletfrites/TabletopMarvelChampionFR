@@ -954,7 +954,8 @@ function updateCardOrientation(card) {
     
     if (data.type_code === 'main_scheme') {
         card.classList.add('landscape');
-    } else if (!isFlipped && data.type_code === 'side_scheme') {
+    // On ajoute ici la vérification pour 'player_side_scheme'
+    } else if (!isFlipped && (data.type_code === 'side_scheme' || data.type_code === 'player_side_scheme')) {
         card.classList.add('landscape');
     } else {
         card.classList.remove('landscape');
