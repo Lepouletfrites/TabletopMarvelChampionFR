@@ -280,7 +280,7 @@ function getImageUrl(cardData) {
 
     const apiImageUrl = cardData.imagesrc ? `https://marvelcdb.com${cardData.imagesrc}` : `https://marvelcdb.com/bundles/cards/${imageCode}.png`;
     
-    let packName = cardData.pack_name || 'Sans Pack';
+    let packName = cardData.pack_code || cardData.pack_name || 'Sans Pack';
     let octgnId = cardData.octgn_id || imageCode; 
     
     let localFileName = octgnId;
