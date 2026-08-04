@@ -295,11 +295,9 @@ function getImageUrl(cardData) {
 
     const localImageUrl = `ImageFr/${packName}/${localFileName}.jpg`;
 
-    if (isWebBrowser) {
-        return apiImageUrl;
-    } else {
-        return localImageUrl;
-    }
+   
+    return localImageUrl;
+    
 }
 
 // ==========================================
