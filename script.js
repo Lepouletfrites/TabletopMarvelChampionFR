@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.4"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
+const GAME_VERSION = "3.5"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -282,6 +282,19 @@ async function fetchAPI(cardCode) {
 function getImageUrl(cardData) {
     if (!cardData) return '';
     
+    // --- CORRECTION : Redirection des versions alternatives (Alt-Art) vers la version de base ---
+    if (cardData.duplicate_of) {
+        // Si la carte de base existe dans notre base de données locale, on utilise ses infos (pack, code)
+        if (localDatabase && localDatabase[cardData.duplicate_of]) {
+            cardData = localDatabase[cardData.duplicate_of];
+        } else {
+            // Sécurité au cas où : on force au moins le code image à être celui de la version de base
+            cardData.code = cardData.duplicate_of;
+            cardData.octgn_id = cardData.duplicate_of; 
+        }
+    }
+    // ---------------------------------------------------------------------------------------------
+
     let code = cardData.code;
     let imageCode = code;
     
@@ -289,8 +302,7 @@ function getImageUrl(cardData) {
         imageCode = code + 'a';
     }
 
-    const apiImageUrl = cardData.imagesrc ? `https://marvelcdb.com${cardData.imagesrc}` : `https://marvelcdb.com/bundles/cards/${imageCode}.png`;
-    
+    // Si on a utilisé l'API, on garde une URL en backup si on le souhaite, mais ici on pointe en local
     let packName = cardData.pack_code || cardData.pack_name || 'Sans Pack';
     let octgnId = cardData.octgn_id || imageCode; 
     
