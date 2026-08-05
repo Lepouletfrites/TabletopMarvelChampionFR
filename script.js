@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "2.8"; // Némésis débloquée pour tous les héros (même via URL) et sauvegarde de l'état
+const GAME_VERSION = "2.9"; // Mise à jour : Decks secondaires isolés, correction pack_code et défausse intelligente
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -118,10 +118,12 @@ let activeTokenAction = null;
 // --- GESTION DES DECKS SECONDAIRES ---
 let heroSecDeck = [];
 let heroSecDiscard = [];
+let heroSecCodes = []; 
 
 // Support dynamique pour plusieurs decks secondaires du méchant
 let villainSecDecks = [[], [], []];
 let villainSecDiscards = [[], [], []];
+let villainSecCodes = [[], [], []]; 
 let vSecCount = 0;
 
 const CARD_BACKS = { player: 'assets/player_back.jpg', encounter: 'assets/encounter_back.jpg' };
@@ -293,9 +295,7 @@ function getImageUrl(cardData) {
 
     const localImageUrl = `ImageFr/${packName}/${localFileName}.jpg`;
 
-   
     return localImageUrl;
-    
 }
 
 // ==========================================
@@ -444,6 +444,7 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
 
     if (secondaryDeckData) {
         heroSecDeck = [...secondaryDeckData];
+        heroSecCodes = [...secondaryDeckData]; 
         shuffleArray(heroSecDeck);
         let hd = document.getElementById('board-hero-deck');
         let hdd = document.getElementById('board-hero-discard');
@@ -557,10 +558,12 @@ btnLoadVillain.addEventListener('click', async () => {
     vSecCount = 0;
     villainSecDecks = [[], [], []];
     villainSecDiscards = [[], [], []];
+    villainSecCodes = [[], [], []]; 
     
     function deployVillainSecDeck(deckArray, title) {
         if (vSecCount >= 3) return; 
         villainSecDecks[vSecCount] = [...deckArray];
+        villainSecCodes[vSecCount] = [...deckArray]; 
         shuffleArray(villainSecDecks[vSecCount]);
         
         let vd = document.getElementById('board-villain-deck-' + vSecCount);
@@ -584,15 +587,34 @@ btnLoadVillain.addEventListener('click', async () => {
     encounterDeck = [];
     let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
 
+    // --- Lister les cartes à exclure de la pioche ---
+    let excludedEncounterCodes = [];
+    if (villainDef.secondary_deck) excludedEncounterCodes.push(...villainDef.secondary_deck);
+
+    const useDefaultMod = document.getElementById('mod-default-checkbox').checked;
+    const selectedMods = Array.from(document.querySelectorAll('.mod-checkbox:checked')).map(cb => cb.value);
+    
+    let modularsToLoad = new Set(selectedMods);
+    if (useDefaultMod && villainDef.default_modulars) {
+        villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
+    }
+
+    modularsToLoad.forEach(mId => {
+        let mDef = MARVEL_DB.modulars.find(m => m.id === mId);
+        if (mDef && mDef.secondary_deck) excludedEncounterCodes.push(...mDef.secondary_deck);
+    });
+
     // Construction dynamique du deck du Méchant basé sur son card_set_code
     if (villainDef.card_set_code) {
         Object.values(localDatabase).forEach(card => {
             if (card.card_set_code === villainDef.card_set_code && !['villain', 'main_scheme'].includes(card.type_code)) {
-                if (card.type_code === 'environment' && !villainCardsToSpawn.includes(card.code)) {
-                    villainCardsToSpawn.push(card.code);
-                } else if (card.type_code !== 'environment') {
-                    for (let i = 0; i < (card.quantity || 1); i++) {
-                        encounterDeck.push(card.code);
+                if (!excludedEncounterCodes.includes(card.code)) {
+                    if (card.type_code === 'environment' && !villainCardsToSpawn.includes(card.code)) {
+                        villainCardsToSpawn.push(card.code);
+                    } else if (card.type_code !== 'environment') {
+                        for (let i = 0; i < (card.quantity || 1); i++) {
+                            encounterDeck.push(card.code);
+                        }
                     }
                 }
             }
@@ -612,14 +634,6 @@ btnLoadVillain.addEventListener('click', async () => {
             villainCardsToSpawn.push(...MARVEL_DB.difficulty[expDiff].start_on_board);
         }
     }
-    
-    const useDefaultMod = document.getElementById('mod-default-checkbox').checked;
-    const selectedMods = Array.from(document.querySelectorAll('.mod-checkbox:checked')).map(cb => cb.value);
-    
-    let modularsToLoad = new Set(selectedMods);
-    if (useDefaultMod && villainDef.default_modulars) {
-        villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
-    }
 
     // Construction dynamique des Decks Modulaires basés sur leur card_set_code
     modularsToLoad.forEach(mId => {
@@ -628,14 +642,18 @@ btnLoadVillain.addEventListener('click', async () => {
             if (modDef.card_set_code) {
                 Object.values(localDatabase).forEach(card => {
                     if (card.card_set_code === modDef.card_set_code) {
-                        for (let i = 0; i < (card.quantity || 1); i++) {
-                            encounterDeck.push(card.code);
+                        if (!excludedEncounterCodes.includes(card.code)) {
+                            for (let i = 0; i < (card.quantity || 1); i++) {
+                                encounterDeck.push(card.code);
+                            }
                         }
                     }
                 });
             } else if (modDef.cards && modDef.cards.length > 0) {
                 // Fallback pour les objets non encore mis à jour
-                encounterDeck.push(...modDef.cards);
+                modDef.cards.forEach(code => {
+                    if(!excludedEncounterCodes.includes(code)) encounterDeck.push(code);
+                });
             }
 
             if (modDef.secondary_deck) {
@@ -954,7 +972,6 @@ function updateCardOrientation(card) {
     
     if (data.type_code === 'main_scheme') {
         card.classList.add('landscape');
-    // On ajoute ici la vérification pour 'player_side_scheme'
     } else if (!isFlipped && (data.type_code === 'side_scheme' || data.type_code === 'player_side_scheme')) {
         card.classList.add('landscape');
     } else {
@@ -1105,15 +1122,27 @@ function putInHand(cardElement) {
 }
 
 function discardCard(cardElement, forcedPile = null) {
-    const code = cardElement.dataset.code; const faction = cardElement.dataset.faction;
+    const code = cardElement.dataset.code; 
+    const faction = cardElement.dataset.faction;
     cardElement.remove();
     
-    if (forcedPile === 'hero-sec') heroSecDiscard.push(code);
-    else if (forcedPile && forcedPile.startsWith('villain-sec-discard-')) {
-        let idx = parseInt(forcedPile.split('-')[3]);
-        if(!isNaN(idx)) villainSecDiscards[idx].push(code);
+    let target = forcedPile;
+    
+    if (!target) {
+        if (heroSecCodes.includes(code)) target = 'hero-sec';
+        else if (villainSecCodes[0] && villainSecCodes[0].includes(code)) target = 'villain-sec-discard-0';
+        else if (villainSecCodes[1] && villainSecCodes[1].includes(code)) target = 'villain-sec-discard-1';
+        else if (villainSecCodes[2] && villainSecCodes[2].includes(code)) target = 'villain-sec-discard-2';
+        else if (faction === 'encounter' || faction === 'villain') target = 'encounter';
+        else target = 'player';
     }
-    else if (forcedPile === 'encounter' || (!forcedPile && (faction === 'encounter' || faction === 'villain'))) encounterDiscardPile.push(code); 
+    
+    if (target === 'hero-sec') heroSecDiscard.push(code);
+    else if (target && target.startsWith('villain-sec-discard-')) {
+        let idx = parseInt(target.split('-')[3]);
+        if (!isNaN(idx)) villainSecDiscards[idx].push(code);
+    }
+    else if (target === 'encounter') encounterDiscardPile.push(code); 
     else discardPile.push(code);
     
     updateDeckCounters();
@@ -1621,12 +1650,12 @@ function saveGameState(isAutoSave = false) {
         const state = {
             version: GAME_VERSION, 
             myDeck, discardPile, encounterDeck, encounterDiscardPile,
-            heroSecDeck, heroSecDiscard, 
-            villainSecDecks, villainSecDiscards,
+            heroSecDeck, heroSecDiscard, heroSecCodes,
+            villainSecDecks, villainSecDiscards, villainSecCodes,
             currentHeroId, boardX, boardY, scale,
             heroHp: heroHpInput.value,
             heroHandSize: heroHandSizeSpan.innerText,
-            heroNemesis: window.currentHeroNemesis, // <-- SAUVEGARDE DE LA NÉMÉSIS AJOUTÉE ICI
+            heroNemesis: window.currentHeroNemesis,
             
             currentVillainStages, currentVillainStageIndex,
             currentVillainSchemes, currentSchemeIndex,
@@ -1712,8 +1741,10 @@ function loadGameState() {
         
         heroSecDeck = state.heroSecDeck || [];
         heroSecDiscard = state.heroSecDiscard || [];
+        heroSecCodes = state.heroSecCodes || [];
         villainSecDecks = state.villainSecDecks || [[], [], []];
         villainSecDiscards = state.villainSecDiscards || [[], [], []];
+        villainSecCodes = state.villainSecCodes || [[], [], []];
         
         currentHeroId = state.currentHeroId || null;
         
