@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.1"; // Jetons centrés, Drag depuis les decks, Cartes de Côté et Bannissement
+const GAME_VERSION = "3.2"; // Retour du bouton Némésis et nettoyage des cartes de côté lors de son utilisation
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -465,12 +465,71 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         hdd.style.left = (spawnX + 440) + "px";
         hdd.style.top = (spawnY) + "px";
     }
+
+    // --- RETOUR DU BOUTON NEMESIS ---
+    if (btnAddNemesis && window.currentHeroNemesis.set.length > 0) {
+        btnAddNemesis.classList.remove('hidden');
+    }
     
     shuffleArray(myDeck);
     deckElement.classList.remove('hidden');
     updateDeckCounters();
 
     await drawToHandSize();
+}
+
+// --- BOUTON NÉMÉSIS (Mise à jour avec gestion des cartes de côté) ---
+if (btnAddNemesis) {
+    btnAddNemesis.addEventListener('click', async () => {
+        if (!window.currentHeroNemesis || window.currentHeroNemesis.set.length === 0) return;
+
+        btnAddNemesis.innerText = "Recherche...";
+        btnAddNemesis.disabled = true;
+
+        try {
+            const spawnX = CENTER_X;
+            const spawnY = CENTER_Y;
+
+            if (window.currentHeroNemesis.obligation) {
+                encounterDeck.push(window.currentHeroNemesis.obligation);
+                // Retirer de la liste de côté
+                let oblIdx = setAsideCards.indexOf(window.currentHeroNemesis.obligation);
+                if (oblIdx !== -1) setAsideCards.splice(oblIdx, 1);
+            }
+
+            let minionDeployed = false, schemeDeployed = false;
+
+            for (let code of window.currentHeroNemesis.set) {
+                // Retirer de la liste de côté
+                let idx = setAsideCards.indexOf(code);
+                if (idx !== -1) setAsideCards.splice(idx, 1);
+
+                const cardData = await fetchAPI(code);
+                if (!cardData) continue;
+
+                if ((cardData.type_code === 'side_scheme' && !schemeDeployed) || (cardData.type_code === 'minion' && !minionDeployed)) {
+                    if (cardData.type_code === 'side_scheme') schemeDeployed = true;
+                    if (cardData.type_code === 'minion') minionDeployed = true;
+
+                    const dom = buildCardDOM(cardData);
+                    putOnBoardAt(dom, spawnX + (Math.random() * 100 - 50), spawnY + (Math.random() * 100 - 50), false);
+                } else {
+                    encounterDeck.push(cardData.code); 
+                }
+            }
+            
+            shuffleArray(encounterDeck);
+            updateDeckCounters();
+            encounterDeckElement.classList.remove('hidden'); 
+            btnAddNemesis.classList.add('hidden'); 
+            saveGameState();
+        } catch (e) {
+            alert("Erreur lors de l'ajout de la Némésis.");
+        } finally {
+            btnAddNemesis.innerText = "😈 Ajouter Némésis";
+            btnAddNemesis.disabled = false;
+        }
+    });
 }
 
 btnLoadVillain.addEventListener('click', async () => {
@@ -1903,6 +1962,10 @@ function loadGameState() {
                     }
                 });
             }
+        }
+
+        if (btnAddNemesis && window.currentHeroNemesis && window.currentHeroNemesis.set.length > 0) {
+            btnAddNemesis.classList.remove('hidden');
         }
 
         updateDeckCounters();
