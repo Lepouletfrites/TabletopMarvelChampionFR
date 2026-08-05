@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.6"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
+const GAME_VERSION = "3.7"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -339,6 +339,27 @@ btnLoadHero.addEventListener('click', async () => {
     saveGameState();
 });
 
+// --- NOUVELLE FONCTION : Trouve la carte de base d'une version alternative ---
+async function getBaseCardCode(code) {
+    // On vérifie d'abord dans ta base locale
+    if (localDatabase && localDatabase[code] && localDatabase[code].duplicate_of) {
+        return await getBaseCardCode(localDatabase[code].duplicate_of);
+    }
+    // Sinon, on interroge MarvelCDB pour être sûr
+    try {
+        let res = await fetch(`https://marvelcdb.com/api/public/card/${code}.json`);
+        if (res.ok) {
+            let data = await res.json();
+            if (data.duplicate_of) {
+                return await getBaseCardCode(data.duplicate_of);
+            }
+        }
+    } catch (e) {}
+    
+    return code; // Si ce n'est pas une alternative, on garde le code normal
+}
+
+
 btnLoadCustomDeck.addEventListener('click', async () => {
     const inputVal = deckUrlInput.value.trim();
     const urlMatch = inputVal.match(/(?:decklist|deck)\/(?:view|edit)?\/?(\d+)/);
@@ -368,10 +389,14 @@ btnLoadCustomDeck.addEventListener('click', async () => {
 
         myDeck = [];
         for (const [code, quantity] of Object.entries(deckData.slots)) {
-            for (let i = 0; i < quantity; i++) myDeck.push(code);
+            // CORRECTION : On convertit le code alt-art en code de base avant de l'ajouter au deck
+            let baseCode = await getBaseCardCode(code);
+            for (let i = 0; i < quantity; i++) myDeck.push(baseCode);
         }
 
-        const heroCode = deckData.hero_code || deckData.investigator_code;
+        // CORRECTION : On s'assure aussi que le Héros n'est pas un alt-art
+        const rawHeroCode = deckData.hero_code || deckData.investigator_code;
+        const heroCode = await getBaseCardCode(rawHeroCode);
         
         let dbHeroId = null;
         let dbSecondaryDeck = null;
@@ -396,6 +421,7 @@ btnLoadCustomDeck.addEventListener('click', async () => {
         btnLoadCustomDeck.innerText = "Charger via URL";
     }
 });
+
 
 async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     let coreCode = heroBaseCode.replace(/[ab]$/, '');
