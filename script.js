@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.2"; // Retour du bouton Némésis et nettoyage des cartes de côté lors de son utilisation
+const GAME_VERSION = "3.3"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -390,7 +390,7 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     let altFace = frontData;               
     
     currentHeroId = dbHeroId; 
-    setAsideCards = []; // Initialisation des cartes de côté
+    setAsideCards = []; 
     banishedCards = [];
 
     window.currentHeroNemesis = { obligation: null, set: [] };
@@ -399,12 +399,12 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         Object.values(localDatabase).forEach(card => {
             if (card.card_set_code === heroSetCode && card.type_code === 'obligation') {
                 window.currentHeroNemesis.obligation = card.code;
-                setAsideCards.push(card.code); // Mise de côté
+                setAsideCards.push(card.code); 
             }
             if (card.card_set_code === heroSetCode + '_nemesis') {
                 for (let i = 0; i < (card.quantity || 1); i++) {
                     window.currentHeroNemesis.set.push(card.code);
-                    setAsideCards.push(card.code); // Mise de côté
+                    setAsideCards.push(card.code); 
                 }
             }
         });
@@ -466,7 +466,6 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         hdd.style.top = (spawnY) + "px";
     }
 
-    // --- RETOUR DU BOUTON NEMESIS ---
     if (btnAddNemesis && window.currentHeroNemesis.set.length > 0) {
         btnAddNemesis.classList.remove('hidden');
     }
@@ -478,7 +477,6 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     await drawToHandSize();
 }
 
-// --- BOUTON NÉMÉSIS (Mise à jour avec gestion des cartes de côté) ---
 if (btnAddNemesis) {
     btnAddNemesis.addEventListener('click', async () => {
         if (!window.currentHeroNemesis || window.currentHeroNemesis.set.length === 0) return;
@@ -492,7 +490,6 @@ if (btnAddNemesis) {
 
             if (window.currentHeroNemesis.obligation) {
                 encounterDeck.push(window.currentHeroNemesis.obligation);
-                // Retirer de la liste de côté
                 let oblIdx = setAsideCards.indexOf(window.currentHeroNemesis.obligation);
                 if (oblIdx !== -1) setAsideCards.splice(oblIdx, 1);
             }
@@ -500,7 +497,6 @@ if (btnAddNemesis) {
             let minionDeployed = false, schemeDeployed = false;
 
             for (let code of window.currentHeroNemesis.set) {
-                // Retirer de la liste de côté
                 let idx = setAsideCards.indexOf(code);
                 if (idx !== -1) setAsideCards.splice(idx, 1);
 
@@ -549,7 +545,6 @@ btnLoadVillain.addEventListener('click', async () => {
     currentVillainSchemes = villainDef.schemes || [];
     currentSchemeIndex = 0;
 
-    // Ajout des autres stades et manigances à la réserve "De Côté"
     currentVillainStages.forEach(code => {
         if (code !== currentVillainStages[currentVillainStageIndex]) setAsideCards.push(code);
     });
@@ -873,7 +868,6 @@ function reshufflePile(type, pile, discard) {
     }
 }
 
-// Fonction de piochage classique (clic simple)
 async function drawCard(type) {
     let pile, discard;
     let vIndex = -1;
@@ -931,7 +925,6 @@ async function drawCard(type) {
     }
 }
 
-// Fonction pour générer une carte et la mettre en mode drag immédiatement
 async function spawnAndDragCard(type, cx, cy) {
     let pile, discard;
     if (type === 'player') { pile = myDeck; discard = discardPile; }
@@ -964,7 +957,6 @@ async function spawnAndDragCard(type, cx, cy) {
     
     putOnBoardAt(cardDOM, trueX, trueY, type !== 'player'); 
 
-    // Déclenche le drag nativement sur la nouvelle carte
     const fakeEvent = new MouseEvent('mousedown', { clientX: cx, clientY: cy, bubbles: true });
     cardDOM.dispatchEvent(fakeEvent);
 }
@@ -988,7 +980,7 @@ function setupDeckInteractions(deckId, pileType) {
         let cy = e.clientY || (e.touches && e.touches[0].clientY);
         if (!dragged && (Math.abs(cx - startX) > 10 || Math.abs(cy - startY) > 10)) {
             dragged = true;
-            isDown = false; // Transfert du contrôle à la carte
+            isDown = false; 
             spawnAndDragCard(pileType, cx, cy);
         }
     }
@@ -1117,7 +1109,6 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     card.dataset.frontUrl = frontUrl;
     card.dataset.backUrl = backUrl;
 
-    // --- JETONS CENTRÉS HORIZONTALEMENT ---
     card.innerHTML = `
         <img src="${frontUrl}" class="card-front" alt="${cardData.name || 'Carte'}" onerror="this.onerror=null; this.src='${CARD_BACKS_FALLBACK[isEncounter ? 'encounter' : 'player']}';"/>
         <div class="token damage-token hidden" style="top: 45%; left: 15%; transform: translate(-50%, -50%);">0</div>
@@ -1271,6 +1262,12 @@ function setupCardInteractions(card) {
             if (activeTokenType) return; 
             if (!card.classList.contains('in-hand')) card.classList.toggle('exhausted');
             e.preventDefault();
+            
+            // Annule le délai de zoom si c'est un double-clic (mobile)
+            if (card.clickTimeout) {
+                clearTimeout(card.clickTimeout);
+                card.clickTimeout = null;
+            }
         }
         lastTap = currentTime;
     });
@@ -1487,9 +1484,18 @@ function makeDraggable(element) {
                 applyTokenModeToCard(element, activeTokenType, activeTokenAction);
                 saveGameState();
             } else {
-                const isFlipped = element.dataset.flipped === 'true';
-                const currentImg = isFlipped ? element.dataset.backUrl : element.dataset.frontUrl;
-                showZoom(currentImg);
+                // Délai pour différencier un clic simple d'un double clic
+                if (element.clickTimeout) {
+                    clearTimeout(element.clickTimeout);
+                    element.clickTimeout = null;
+                } else {
+                    element.clickTimeout = setTimeout(() => {
+                        const isFlipped = element.dataset.flipped === 'true';
+                        const currentImg = isFlipped ? element.dataset.backUrl : element.dataset.frontUrl;
+                        showZoom(currentImg);
+                        element.clickTimeout = null;
+                    }, 250); 
+                }
             }
         }
     }
@@ -1667,7 +1673,6 @@ async function openInspectModal(pileType) {
         item.querySelector('button').addEventListener('click', () => {
             pile.splice(i, 1); updateDeckCounters();
             
-            // Si c'est une carte de côté spéciale (ex: prochain stade de vilain), on gère l'avancement
             if (pileType === 'out-of-play') {
                 if (currentVillainSchemes.some(s => s.replace(/[ab]$/,'') === code.replace(/[ab]$/,''))) {
                     let mainDom = document.getElementById('main-scheme-element');
