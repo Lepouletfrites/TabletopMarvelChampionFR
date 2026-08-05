@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "2.9"; // Mise à jour : Decks secondaires isolés, correction pack_code et défausse intelligente
+const GAME_VERSION = "3.1"; // Jetons centrés, Drag depuis les decks, Cartes de Côté et Bannissement
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -70,6 +70,13 @@ menuPileShuffleIntoDeck.id = 'menu-pile-shuffle-into-deck';
 menuPileShuffleIntoDeck.innerText = 'Remélanger dans la pioche';
 pileContextMenu.appendChild(menuPileShuffleIntoDeck);
 
+const menuBanish = document.createElement('div');
+menuBanish.className = 'menu-item';
+menuBanish.id = 'menu-banish';
+menuBanish.innerText = 'Bannir la carte';
+menuBanish.style.color = '#e74c3c';
+contextMenu.appendChild(menuBanish);
+
 // Ajout des boutons pour l'Accélération
 const menuAddAccel = document.getElementById('menu-add-accel');
 const menuSubAccel = document.getElementById('menu-sub-accel');
@@ -115,16 +122,18 @@ let currentSchemeIndex = 0;
 let activeTokenType = null;
 let activeTokenAction = null; 
 
-// --- GESTION DES DECKS SECONDAIRES ---
+// --- GESTION DES DECKS SECONDAIRES & HORS-JEU ---
 let heroSecDeck = [];
 let heroSecDiscard = [];
 let heroSecCodes = []; 
 
-// Support dynamique pour plusieurs decks secondaires du méchant
 let villainSecDecks = [[], [], []];
 let villainSecDiscards = [[], [], []];
 let villainSecCodes = [[], [], []]; 
 let vSecCount = 0;
+
+let setAsideCards = []; // Cartes de côté (Némésis, Stades suivants...)
+let banishedCards = []; // Cartes bannies
 
 const CARD_BACKS = { player: 'assets/player_back.jpg', encounter: 'assets/encounter_back.jpg' };
 const CARD_BACKS_FALLBACK = {
@@ -294,7 +303,6 @@ function getImageUrl(cardData) {
     }
 
     const localImageUrl = `ImageFr/${packName}/${localFileName}.jpg`;
-
     return localImageUrl;
 }
 
@@ -382,18 +390,21 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     let altFace = frontData;               
     
     currentHeroId = dbHeroId; 
+    setAsideCards = []; // Initialisation des cartes de côté
+    banishedCards = [];
 
-    // Auto-Génération de la Némésis et de l'Obligation
     window.currentHeroNemesis = { obligation: null, set: [] };
     if (frontData && frontData.card_set_code) {
         let heroSetCode = frontData.card_set_code;
         Object.values(localDatabase).forEach(card => {
             if (card.card_set_code === heroSetCode && card.type_code === 'obligation') {
                 window.currentHeroNemesis.obligation = card.code;
+                setAsideCards.push(card.code); // Mise de côté
             }
             if (card.card_set_code === heroSetCode + '_nemesis') {
                 for (let i = 0; i < (card.quantity || 1); i++) {
                     window.currentHeroNemesis.set.push(card.code);
+                    setAsideCards.push(card.code); // Mise de côté
                 }
             }
         });
@@ -422,7 +433,6 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     putOnBoardAt(heroDOM, spawnX, spawnY, false);
 
     heroTracker.classList.remove('hidden');
-    heroHpInput.value = startFace.health || 10;
     heroHandSizeSpan.innerText = heroDOM.dataset.handSizeA;
     
     if (currentHeroId) {
@@ -455,10 +465,6 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         hdd.style.left = (spawnX + 440) + "px";
         hdd.style.top = (spawnY) + "px";
     }
-
-    if (btnAddNemesis && window.currentHeroNemesis.set.length > 0) {
-        btnAddNemesis.classList.remove('hidden');
-    }
     
     shuffleArray(myDeck);
     deckElement.classList.remove('hidden');
@@ -467,52 +473,6 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     await drawToHandSize();
 }
 
-// --- BOUTON NÉMÉSIS ---
-if (btnAddNemesis) {
-    btnAddNemesis.addEventListener('click', async () => {
-        if (!window.currentHeroNemesis || window.currentHeroNemesis.set.length === 0) return;
-
-        btnAddNemesis.innerText = "Recherche...";
-        btnAddNemesis.disabled = true;
-
-        try {
-            const spawnX = CENTER_X;
-            const spawnY = CENTER_Y;
-
-            if (window.currentHeroNemesis.obligation) encounterDeck.push(window.currentHeroNemesis.obligation);
-
-            let minionDeployed = false, schemeDeployed = false;
-
-            for (let code of window.currentHeroNemesis.set) {
-                const cardData = await fetchAPI(code);
-                if (!cardData) continue;
-
-                if ((cardData.type_code === 'side_scheme' && !schemeDeployed) || (cardData.type_code === 'minion' && !minionDeployed)) {
-                    if (cardData.type_code === 'side_scheme') schemeDeployed = true;
-                    if (cardData.type_code === 'minion') minionDeployed = true;
-
-                    const dom = buildCardDOM(cardData);
-                    putOnBoardAt(dom, spawnX + (Math.random() * 100 - 50), spawnY + (Math.random() * 100 - 50), false);
-                } else {
-                    encounterDeck.push(cardData.code); 
-                }
-            }
-            
-            shuffleArray(encounterDeck);
-            updateDeckCounters();
-            encounterDeckElement.classList.remove('hidden'); 
-            btnAddNemesis.classList.add('hidden'); 
-            saveGameState();
-        } catch (e) {
-            alert("Erreur lors de l'ajout du Némésis.");
-        } finally {
-            btnAddNemesis.innerText = "😈 Ajouter Némésis";
-            btnAddNemesis.disabled = false;
-        }
-    });
-}
-
-// --- DEPLOYER LE MÉCHANT ET LE SCÉNARIO ---
 btnLoadVillain.addEventListener('click', async () => {
     const vId = villainSelect.value;
     
@@ -529,6 +489,17 @@ btnLoadVillain.addEventListener('click', async () => {
     currentVillainStageIndex = isExpert ? 1 : 0; 
     currentVillainSchemes = villainDef.schemes || [];
     currentSchemeIndex = 0;
+
+    // Ajout des autres stades et manigances à la réserve "De Côté"
+    currentVillainStages.forEach(code => {
+        if (code !== currentVillainStages[currentVillainStageIndex]) setAsideCards.push(code);
+    });
+    currentVillainSchemes.forEach(code => {
+        let baseCode = code.replace(/[ab]$/, '');
+        if (code !== currentVillainSchemes[0] && baseCode !== currentVillainSchemes[0].replace(/[ab]$/, '')) {
+            setAsideCards.push(baseCode);
+        }
+    });
 
     const spawnX = CENTER_X;
     const spawnY = CENTER_Y - 400; 
@@ -587,7 +558,6 @@ btnLoadVillain.addEventListener('click', async () => {
     encounterDeck = [];
     let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
 
-    // --- Lister les cartes à exclure de la pioche ---
     let excludedEncounterCodes = [];
     if (villainDef.secondary_deck) excludedEncounterCodes.push(...villainDef.secondary_deck);
 
@@ -604,7 +574,6 @@ btnLoadVillain.addEventListener('click', async () => {
         if (mDef && mDef.secondary_deck) excludedEncounterCodes.push(...mDef.secondary_deck);
     });
 
-    // Construction dynamique du deck du Méchant basé sur son card_set_code
     if (villainDef.card_set_code) {
         Object.values(localDatabase).forEach(card => {
             if (card.card_set_code === villainDef.card_set_code && !['villain', 'main_scheme'].includes(card.type_code)) {
@@ -621,7 +590,6 @@ btnLoadVillain.addEventListener('click', async () => {
         });
     }
 
-    // Ajout des Sets de Difficulté
     if (stdDiff !== 'none' && MARVEL_DB.difficulty[stdDiff]) {
         encounterDeck.push(...(MARVEL_DB.difficulty[stdDiff].cards || []));
         if (MARVEL_DB.difficulty[stdDiff].start_on_board) {
@@ -635,7 +603,6 @@ btnLoadVillain.addEventListener('click', async () => {
         }
     }
 
-    // Construction dynamique des Decks Modulaires basés sur leur card_set_code
     modularsToLoad.forEach(mId => {
         let modDef = MARVEL_DB.modulars.find(m => m.id === mId);
         if (modDef) {
@@ -650,7 +617,6 @@ btnLoadVillain.addEventListener('click', async () => {
                     }
                 });
             } else if (modDef.cards && modDef.cards.length > 0) {
-                // Fallback pour les objets non encore mis à jour
                 modDef.cards.forEach(code => {
                     if(!excludedEncounterCodes.includes(code)) encounterDeck.push(code);
                 });
@@ -718,7 +684,8 @@ document.querySelectorAll('.token-btn').forEach(btn => {
 function updateTokenBarUI() {
     document.querySelectorAll('.token-btn').forEach(b => {
         let type = b.dataset.type;
-        let baseText = b.dataset.basetext;
+        if (!type) return;
+        let baseText = b.dataset.basetext || b.innerText.split(' ')[0];
         
         if (activeTokenType === type) {
             b.classList.add('active');
@@ -828,15 +795,6 @@ async function drawToHandSize() {
     saveGameState();
 }
 
-deckElement.addEventListener('click', () => { drawCard('player'); saveGameState(); });
-encounterDeckElement.addEventListener('click', () => { drawCard('encounter'); saveGameState(); });
-document.getElementById('board-hero-deck').addEventListener('click', () => { drawCard('hero-sec'); saveGameState(); });
-
-for (let i = 0; i < 3; i++) {
-    let d = document.getElementById('board-villain-deck-' + i);
-    if (d) d.addEventListener('click', () => { drawCard('villain-sec-' + i); saveGameState(); });
-}
-
 function reshufflePile(type, pile, discard) {
     pile.push(...discard);
     discard.length = 0; 
@@ -856,6 +814,7 @@ function reshufflePile(type, pile, discard) {
     }
 }
 
+// Fonction de piochage classique (clic simple)
 async function drawCard(type) {
     let pile, discard;
     let vIndex = -1;
@@ -913,6 +872,84 @@ async function drawCard(type) {
     }
 }
 
+// Fonction pour générer une carte et la mettre en mode drag immédiatement
+async function spawnAndDragCard(type, cx, cy) {
+    let pile, discard;
+    if (type === 'player') { pile = myDeck; discard = discardPile; }
+    else if (type === 'encounter') { pile = encounterDeck; discard = encounterDiscardPile; }
+    else if (type === 'hero-sec') { pile = heroSecDeck; discard = heroSecDiscard; }
+    else if (type.startsWith('villain-sec-')) {
+        let vIndex = parseInt(type.split('-')[2]);
+        pile = villainSecDecks[vIndex];
+        discard = villainSecDiscards[vIndex];
+    }
+
+    if (!pile) return;
+    if (pile.length === 0) {
+        if (discard && discard.length > 0) reshufflePile(type, pile, discard);
+        else return;
+    }
+
+    const code = pile.pop();
+    updateDeckCounters();
+    if (pile.length === 0 && discard && discard.length > 0) reshufflePile(type, pile, discard);
+
+    const data = await fetchAPI(code);
+    if (!data) return;
+
+    const cardDOM = buildCardDOM(data);
+    
+    const rect = boardWrapper.getBoundingClientRect();
+    const trueX = (cx - rect.left - boardX) / scale - 60;
+    const trueY = (cy - rect.top - boardY) / scale - 84;
+    
+    putOnBoardAt(cardDOM, trueX, trueY, type !== 'player'); 
+
+    // Déclenche le drag nativement sur la nouvelle carte
+    const fakeEvent = new MouseEvent('mousedown', { clientX: cx, clientY: cy, bubbles: true });
+    cardDOM.dispatchEvent(fakeEvent);
+}
+
+// --- GESTION DU DRAG DEPUIS LES PIOCHES ---
+function setupDeckInteractions(deckId, pileType) {
+    const deckDom = document.getElementById(deckId);
+    if (!deckDom) return;
+    
+    let startX, startY, isDown = false, dragged = false;
+
+    function handleDown(e) {
+        if (e.button === 2) return; 
+        isDown = true; dragged = false;
+        startX = e.clientX || (e.touches && e.touches[0].clientX);
+        startY = e.clientY || (e.touches && e.touches[0].clientY);
+    }
+    function handleMove(e) {
+        if (!isDown) return;
+        let cx = e.clientX || (e.touches && e.touches[0].clientX);
+        let cy = e.clientY || (e.touches && e.touches[0].clientY);
+        if (!dragged && (Math.abs(cx - startX) > 10 || Math.abs(cy - startY) > 10)) {
+            dragged = true;
+            isDown = false; // Transfert du contrôle à la carte
+            spawnAndDragCard(pileType, cx, cy);
+        }
+    }
+    function handleUp(e) {
+        if (isDown && !dragged) {
+            drawCard(pileType); 
+            saveGameState();
+        }
+        isDown = false;
+    }
+
+    deckDom.addEventListener('mousedown', handleDown);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    
+    deckDom.addEventListener('touchstart', handleDown, {passive: true});
+    window.addEventListener('touchmove', handleMove, {passive: true});
+    window.addEventListener('touchend', handleUp, {passive: true});
+}
+
 async function updateDiscardImages() {
     async function setPileImage(pileArray, elementId) {
         let el = document.getElementById(elementId);
@@ -961,6 +998,9 @@ function updateDeckCounters() {
         if (d && villainSecDecks[i]) d.innerText = villainSecDecks[i].length;
         if (dd && villainSecDiscards[i]) dd.innerText = villainSecDiscards[i].length;
     }
+
+    let banCount = document.getElementById('banished-count');
+    if (banCount) banCount.innerText = banishedCards.length;
     
     updateDiscardImages();
 }
@@ -990,15 +1030,17 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     let backUrl = explicitBackUrl || defaultBack;
 
     let initThreat = 0;
-    if (cardData.type_code === 'side_scheme' || cardData.type_code === 'main_scheme') {
-        if (cardData.base_threat !== undefined) {
-            initThreat = cardData.base_threat;
-        } else if (cardData.base_threat_fixed !== undefined) {
-            initThreat = cardData.base_threat_fixed;
-        }
+    if (cardData.type_code === 'side_scheme' || cardData.type_code === 'main_scheme' || cardData.type_code === 'player_side_scheme') {
+        if (cardData.base_threat !== undefined) initThreat = cardData.base_threat;
+        else if (cardData.base_threat_fixed !== undefined) initThreat = cardData.base_threat_fixed;
     }
 
-    card.dataset.damage = 0;
+    let initHP = 0;
+    if (['hero', 'alter_ego', 'villain', 'minion', 'ally'].includes(cardData.type_code)) {
+        if (cardData.health !== undefined) initHP = cardData.health;
+    }
+
+    card.dataset.damage = initHP; 
     card.dataset.threat = initThreat;
     card.dataset.generic = 0;
     card.dataset.acceleration = 0;
@@ -1016,11 +1058,12 @@ function buildCardDOM(cardData, explicitBackUrl = null) {
     card.dataset.frontUrl = frontUrl;
     card.dataset.backUrl = backUrl;
 
+    // --- JETONS CENTRÉS HORIZONTALEMENT ---
     card.innerHTML = `
         <img src="${frontUrl}" class="card-front" alt="${cardData.name || 'Carte'}" onerror="this.onerror=null; this.src='${CARD_BACKS_FALLBACK[isEncounter ? 'encounter' : 'player']}';"/>
-        <div class="token damage-token hidden">0</div>
-        <div class="token threat-token hidden">0</div>
-        <div class="token generic-token hidden">0</div>
+        <div class="token damage-token hidden" style="top: 45%; left: 15%; transform: translate(-50%, -50%);">0</div>
+        <div class="token threat-token hidden" style="top: 45%; left: 50%; transform: translate(-50%, -50%);">0</div>
+        <div class="token generic-token hidden" style="top: 45%; left: 85%; transform: translate(-50%, -50%);">0</div>
         <div class="token acceleration-token hidden" style="top: 50%; right: -8px; transform: translateY(-50%); background-color: #e67e22; color: white;">0</div>
         <div class="status-container tough-container"></div>
         <div class="status-container stunned-container"></div>
@@ -1103,7 +1146,14 @@ function putOnBoardAt(cardElement, x, y, faceDown = false) {
 function putInHand(cardElement) {
     cardElement.classList.add('in-hand'); cardElement.style.left = ""; cardElement.style.top = "";
     cardElement.classList.remove('exhausted');
-    cardElement.dataset.damage = 0; 
+    
+    let data = JSON.parse(cardElement.dataset.cardData);
+    let initHP = 0;
+    if (['hero', 'alter_ego', 'villain', 'minion', 'ally'].includes(data.type_code)) {
+        initHP = data.health || 0;
+    }
+    
+    cardElement.dataset.damage = initHP; 
     cardElement.dataset.threat = 0;
     cardElement.dataset.generic = 0;
     cardElement.dataset.acceleration = 0;
@@ -1210,15 +1260,34 @@ function setupCardInteractions(card) {
     });
 }
 
+menuBanish.addEventListener('click', () => {
+    if (targetCard) {
+        banishedCards.push(targetCard.dataset.code);
+        targetCard.remove();
+        updateDeckCounters();
+        saveGameState();
+    }
+    hideAllMenus();
+});
+
 menuNextScheme.addEventListener('click', async () => {
     if (targetCard) {
         let x = parseFloat(targetCard.style.left);
         let y = parseFloat(targetCard.style.top);
         
         let carryOverAcceleration = parseInt(targetCard.dataset.acceleration) || 0;
+        
+        let oldCode = currentVillainSchemes[currentSchemeIndex].replace(/[ab]$/, '');
+        let codeIdx = setAsideCards.indexOf(oldCode);
+        if(codeIdx !== -1) setAsideCards.splice(codeIdx, 1);
+        
         targetCard.remove(); 
         currentSchemeIndex++;
         let baseCode = currentVillainSchemes[currentSchemeIndex].replace(/[ab]$/, '');
+        
+        let newIdx = setAsideCards.indexOf(baseCode);
+        if (newIdx !== -1) setAsideCards.splice(newIdx, 1);
+        
         let frontData = await fetchAPI(baseCode); 
         let backData = await fetchAPI(baseCode + 'b'); 
         
@@ -1240,9 +1309,19 @@ menuNextVillain.addEventListener('click', async () => {
     if (targetCard) {
         let x = parseFloat(targetCard.style.left);
         let y = parseFloat(targetCard.style.top);
+        
+        let oldCode = currentVillainStages[currentVillainStageIndex];
+        let codeIdx = setAsideCards.indexOf(oldCode);
+        if(codeIdx !== -1) setAsideCards.splice(codeIdx, 1);
+        
         targetCard.remove();
         currentVillainStageIndex++;
-        let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
+        let nextCode = currentVillainStages[currentVillainStageIndex];
+        
+        let newIdx = setAsideCards.indexOf(nextCode);
+        if (newIdx !== -1) setAsideCards.splice(newIdx, 1);
+
+        let vData = await fetchAPI(nextCode);
         if (vData) {
             let vDom = buildCardDOM(vData);
             putOnBoardAt(vDom, x, y, false);
@@ -1402,13 +1481,21 @@ document.getElementById('menu-flip').addEventListener('click', () => {
 
 document.getElementById('menu-clear-tokens').addEventListener('click', () => { 
     if (targetCard) { 
-        targetCard.dataset.damage = 0;
-        targetCard.dataset.threat = 0;
+        let data = JSON.parse(targetCard.dataset.cardData);
+        let initHP = 0;
+        if (['hero', 'alter_ego', 'villain', 'minion', 'ally'].includes(data.type_code)) initHP = data.health || 0;
+        let initThreat = 0;
+        if (['side_scheme', 'main_scheme', 'player_side_scheme'].includes(data.type_code)) initThreat = data.base_threat !== undefined ? data.base_threat : (data.base_threat_fixed || 0);
+
+        targetCard.dataset.damage = initHP; 
+        targetCard.dataset.threat = initThreat;
+        
         targetCard.dataset.generic = 0;
         targetCard.dataset.acceleration = 0;
         targetCard.dataset.tough = 0;
         targetCard.dataset.stunned = 0;
         targetCard.dataset.confused = 0;
+        
         syncTokenVisuals(targetCard);
         saveGameState(); 
     } 
@@ -1480,6 +1567,8 @@ function getPileArray(pileType) {
         case 'encounter-discard': return encounterDiscardPile; 
         case 'hero-sec-deck': return heroSecDeck;
         case 'hero-sec-discard': return heroSecDiscard;
+        case 'out-of-play': return setAsideCards; 
+        case 'banished': return banishedCards; 
         default: 
             if (pileType.startsWith('villain-sec-deck-')) return villainSecDecks[parseInt(pileType.split('-')[3])];
             if (pileType.startsWith('villain-sec-discard-')) return villainSecDiscards[parseInt(pileType.split('-')[3])];
@@ -1499,6 +1588,8 @@ async function openInspectModal(pileType) {
     else if(pileType === 'hero-sec-deck') pileName = "Deck Spécial (Héros)";
     else if(pileType === 'hero-sec-discard') pileName = "Défausse Spéciale (Héros)";
     else if(pileType.startsWith('villain-sec')) pileName = "Deck Spécial (Méchant)";
+    else if(pileType === 'out-of-play') pileName = "Cartes de Côté (Hors Jeu)";
+    else if(pileType === 'banished') pileName = "Cartes Bannies";
 
     modalTitle.innerText = `${pileName} (${pile.length} cartes)`;
     modalCardsContainer.innerHTML = '';
@@ -1516,6 +1607,21 @@ async function openInspectModal(pileType) {
 
         item.querySelector('button').addEventListener('click', () => {
             pile.splice(i, 1); updateDeckCounters();
+            
+            // Si c'est une carte de côté spéciale (ex: prochain stade de vilain), on gère l'avancement
+            if (pileType === 'out-of-play') {
+                if (currentVillainSchemes.some(s => s.replace(/[ab]$/,'') === code.replace(/[ab]$/,''))) {
+                    let mainDom = document.getElementById('main-scheme-element');
+                    if (mainDom) mainDom.remove();
+                }
+                if (currentVillainStages.includes(code)) {
+                    let oldStage = currentVillainStages[currentVillainStageIndex];
+                    document.querySelectorAll('.card').forEach(c => {
+                        if (c.dataset.code === oldStage) c.remove();
+                    });
+                }
+            }
+
             const cardDOM = buildCardDOM(cardData);
             
             if (pileType.includes('player')) putInHand(cardDOM); 
@@ -1622,7 +1728,6 @@ function getPinchDistance(touches) {
 
 function updateCamera() { board.style.transform = `translate(${boardX}px, ${boardY}px) scale(${scale})`; }
 
-// NOUVELLES FONCTIONS DE ZOOM
 function showZoom(imageUrl) {
     if (imageUrl) {
         zoomImg.src = imageUrl;
@@ -1652,8 +1757,8 @@ function saveGameState(isAutoSave = false) {
             myDeck, discardPile, encounterDeck, encounterDiscardPile,
             heroSecDeck, heroSecDiscard, heroSecCodes,
             villainSecDecks, villainSecDiscards, villainSecCodes,
+            setAsideCards, banishedCards,
             currentHeroId, boardX, boardY, scale,
-            heroHp: heroHpInput.value,
             heroHandSize: heroHandSizeSpan.innerText,
             heroNemesis: window.currentHeroNemesis,
             
@@ -1746,11 +1851,11 @@ function loadGameState() {
         villainSecDiscards = state.villainSecDiscards || [[], [], []];
         villainSecCodes = state.villainSecCodes || [[], [], []];
         
+        setAsideCards = state.setAsideCards || [];
+        banishedCards = state.banishedCards || [];
+
         currentHeroId = state.currentHeroId || null;
-        
-        // --- CHARGEMENT DE LA NÉMÉSIS DEPUIS LA SAUVEGARDE ---
         window.currentHeroNemesis = state.heroNemesis || { obligation: null, set: [] };
-        
         currentVillainStages = state.currentVillainStages || [];
         currentVillainStageIndex = state.currentVillainStageIndex || 0;
         currentVillainSchemes = state.currentVillainSchemes || [];
@@ -1761,10 +1866,6 @@ function loadGameState() {
         scale = state.scale || 1;
         updateCamera();
 
-        if (state.heroHp) {
-            heroHpInput.value = state.heroHp;
-            heroTracker.classList.remove('hidden');
-        }
         if (state.heroHandSize) {
             heroHandSizeSpan.innerText = state.heroHandSize;
         }
@@ -1804,13 +1905,7 @@ function loadGameState() {
             }
         }
 
-        // --- AFFICHAGE DU BOUTON NÉMÉSIS ---
-        if (btnAddNemesis && window.currentHeroNemesis && window.currentHeroNemesis.set.length > 0) {
-            btnAddNemesis.classList.remove('hidden');
-        }
-
         updateDeckCounters();
-
         board.querySelectorAll('.card').forEach(c => c.remove());
         handArea.innerHTML = '';
         
@@ -1863,5 +1958,41 @@ function loadGameState() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    const dmgBtn = document.querySelector('.token-btn[data-type="damage"]');
+    if (dmgBtn) {
+        dmgBtn.dataset.basetext = "PV";
+        dmgBtn.innerText = "PV";
+    }
+
+    const heroHpInput = document.getElementById('hero-hp-input');
+    if (heroHpInput) heroHpInput.style.display = 'none'; 
+
+    // --- INJECTION DES BOUTONS DE CÔTÉ ET BANNIES ---
+    const tokenBar = document.getElementById('token-bar');
+    if (tokenBar) {
+        tokenBar.insertAdjacentHTML('beforeend', `
+            <div style="width: 2px; height: 30px; background-color: #7f8c8d; margin: 0 10px;"></div>
+            <button id="btn-side-cards" class="token-btn" style="background-color: #8e44ad; color: white;">De Côté</button>
+            <button id="btn-banished-cards" class="token-btn" style="background-color: #c0392b; color: white;">Bannies (<span id="banished-count">0</span>)</button>
+        `);
+        
+        document.getElementById('btn-side-cards').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openInspectModal('out-of-play');
+        });
+        document.getElementById('btn-banished-cards').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openInspectModal('banished');
+        });
+    }
+    
+    // --- ATTACHEMENT DU GLISSER-DÉPOSER POUR LES PIOCHES ---
+    setupDeckInteractions('deck', 'player');
+    setupDeckInteractions('encounter-deck', 'encounter');
+    setupDeckInteractions('board-hero-deck', 'hero-sec');
+    for(let i = 0; i < 3; i++) {
+        setupDeckInteractions('board-villain-deck-' + i, 'villain-sec-' + i);
+    }
+
     loadGameState();
 });
