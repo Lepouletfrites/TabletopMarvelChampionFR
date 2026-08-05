@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.7"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
+const GAME_VERSION = "3.9"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -257,31 +257,28 @@ function initMenus() {
 // 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE ET GESTION D'IMAGES
 // ==========================================
 async function fetchAPI(cardCode) {
-    // 1. Chercher dans la base locale en priorité
+    let cardData = null;
+    
+    // 1. Chercher dans la base locale
     if (localDatabase && localDatabase[cardCode]) {
-        let data = localDatabase[cardCode];
-        // Si la carte locale est marquée comme duplicata (rare, mais au cas où)
-        if (data.duplicate_of) {
-            return await fetchAPI(data.duplicate_of);
-        }
-        return data;
+        cardData = localDatabase[cardCode];
+    } else {
+        // 2. Chercher sur MarvelCDB
+        try {
+            let resEN = await fetch(`https://marvelcdb.com/api/public/card/${cardCode}.json`);
+            if (resEN.ok) cardData = await resEN.json();
+        } catch (e) {}
     }
     
-    // 2. Sinon, chercher sur MarvelCDB
-    try {
-        let resEN = await fetch(`https://marvelcdb.com/api/public/card/${cardCode}.json`);
-        if (!resEN.ok) return null;
-        let cardData = await resEN.json();
-        
-        // --- LA MAGIE EST ICI ---
-        // Si l'API nous dit "cette carte est une alternative de X"
-        // On annule et on relance la recherche pour télécharger la version de base !
-        if (cardData.duplicate_of) {
-            console.log(`🔄 Carte alternative détectée (${cardCode}). Remplacement par la carte de base (${cardData.duplicate_of}).`);
-            return await fetchAPI(cardData.duplicate_of); 
-        }
-        // ------------------------
+    if (!cardData) return null;
 
+    // Gestion des alt-arts (duplicate_of)
+    if (cardData.duplicate_of) {
+        return await fetchAPI(cardData.duplicate_of);
+    }
+
+    // 3. Traduction FR si la carte vient d'être téléchargée
+    if (!localDatabase[cardCode]) {
         try {
             let resFR = await fetch(`https://fr.marvelcdb.com/api/public/card/${cardCode}.json`);
             if (resFR.ok) {
@@ -291,12 +288,35 @@ async function fetchAPI(cardCode) {
                 if (frData.traits) cardData.traits = frData.traits;
             }
         } catch (e) {}
-        
-        return cardData;
-    } catch (error) { 
-        return null; 
     }
+
+    // --- NOUVEAUTÉ : GESTION DES RÉÉDITIONS ---
+    // On applique ça uniquement aux cartes du deck joueur pour éviter de casser les héros
+    const playerTypes = ['ally', 'event', 'resource', 'upgrade', 'support'];
+    if (cardData.name && playerTypes.includes(cardData.type_code)) {
+        
+        // On cherche toutes les cartes locales qui ont EXACTEMENT le même nom (et sous-nom s'il y en a un)
+        let matches = Object.values(localDatabase).filter(c => 
+            c.name === cardData.name && 
+            c.type_code === cardData.type_code &&
+            c.subname === cardData.subname
+        );
+        
+        if (matches.length > 0) {
+            // On trie les résultats par code (le plus petit code est la plus vieille édition)
+            matches.sort((a, b) => parseInt(a.code) - parseInt(b.code));
+            
+            // Si la version la plus ancienne a un code différent de ce que le deck demande, on fait l'échange !
+            if (matches[0].code !== cardData.code) {
+                console.log(`🔄 Réédition détectée : ${cardData.name} (${cardCode}) remplacée par l'originale (${matches[0].code}).`);
+                return matches[0];
+            }
+        }
+    }
+    
+    return cardData;
 }
+
 
 function getImageUrl(cardData) {
     if (!cardData) return '';
