@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.5"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
+const GAME_VERSION = "3.6"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -257,13 +257,31 @@ function initMenus() {
 // 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE ET GESTION D'IMAGES
 // ==========================================
 async function fetchAPI(cardCode) {
+    // 1. Chercher dans la base locale en priorité
     if (localDatabase && localDatabase[cardCode]) {
-        return localDatabase[cardCode];
+        let data = localDatabase[cardCode];
+        // Si la carte locale est marquée comme duplicata (rare, mais au cas où)
+        if (data.duplicate_of) {
+            return await fetchAPI(data.duplicate_of);
+        }
+        return data;
     }
+    
+    // 2. Sinon, chercher sur MarvelCDB
     try {
         let resEN = await fetch(`https://marvelcdb.com/api/public/card/${cardCode}.json`);
         if (!resEN.ok) return null;
         let cardData = await resEN.json();
+        
+        // --- LA MAGIE EST ICI ---
+        // Si l'API nous dit "cette carte est une alternative de X"
+        // On annule et on relance la recherche pour télécharger la version de base !
+        if (cardData.duplicate_of) {
+            console.log(`🔄 Carte alternative détectée (${cardCode}). Remplacement par la carte de base (${cardData.duplicate_of}).`);
+            return await fetchAPI(cardData.duplicate_of); 
+        }
+        // ------------------------
+
         try {
             let resFR = await fetch(`https://fr.marvelcdb.com/api/public/card/${cardCode}.json`);
             if (resFR.ok) {
@@ -273,6 +291,7 @@ async function fetchAPI(cardCode) {
                 if (frData.traits) cardData.traits = frData.traits;
             }
         } catch (e) {}
+        
         return cardData;
     } catch (error) { 
         return null; 
@@ -282,19 +301,6 @@ async function fetchAPI(cardCode) {
 function getImageUrl(cardData) {
     if (!cardData) return '';
     
-    // --- CORRECTION : Redirection des versions alternatives (Alt-Art) vers la version de base ---
-    if (cardData.duplicate_of) {
-        // Si la carte de base existe dans notre base de données locale, on utilise ses infos (pack, code)
-        if (localDatabase && localDatabase[cardData.duplicate_of]) {
-            cardData = localDatabase[cardData.duplicate_of];
-        } else {
-            // Sécurité au cas où : on force au moins le code image à être celui de la version de base
-            cardData.code = cardData.duplicate_of;
-            cardData.octgn_id = cardData.duplicate_of; 
-        }
-    }
-    // ---------------------------------------------------------------------------------------------
-
     let code = cardData.code;
     let imageCode = code;
     
@@ -302,7 +308,6 @@ function getImageUrl(cardData) {
         imageCode = code + 'a';
     }
 
-    // Si on a utilisé l'API, on garde une URL en backup si on le souhaite, mais ici on pointe en local
     let packName = cardData.pack_code || cardData.pack_name || 'Sans Pack';
     let octgnId = cardData.octgn_id || imageCode; 
     
@@ -979,9 +984,12 @@ function setupDeckInteractions(deckId, pileType) {
     if (!deckDom) return;
     
     let startX, startY, isDown = false, dragged = false;
-    let lastTouchTime = 0; // Chronomètre pour bloquer le double-clic tactile
+    let lastTouchTime = 0; 
+    let pressStartTime = 0; // Nouveau : chronomètre pour mesurer la durée de l'appui
 
     function handleDown(e) {
+        pressStartTime = Date.now(); // On enregistre l'heure de début de l'appui
+        
         if (e.type.startsWith('touch')) lastTouchTime = Date.now();
         if (e.type.startsWith('mouse') && Date.now() - lastTouchTime < 500) return; // Ignore le faux clic de souris
         if (e.button === 2) return; 
@@ -1005,6 +1013,14 @@ function setupDeckInteractions(deckId, pileType) {
     function handleUp(e) {
         if (e.type.startsWith('mouse') && Date.now() - lastTouchTime < 500) return; // Ignore le faux clic de souris
         
+        let pressDuration = Date.now() - pressStartTime;
+        
+        // CORRECTION : Si on a maintenu l'appui plus de 400ms (appui long sur tablette), on annule la pioche !
+        if (pressDuration > 400) {
+            isDown = false;
+            return;
+        }
+
         if (isDown && !dragged) {
             drawCard(pileType); 
             saveGameState();
@@ -1020,7 +1036,6 @@ function setupDeckInteractions(deckId, pileType) {
     window.addEventListener('touchmove', handleMove, {passive: true});
     window.addEventListener('touchend', handleUp, {passive: true});
 }
-
 
 async function updateDiscardImages() {
     async function setPileImage(pileArray, elementId) {
