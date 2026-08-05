@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.3"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
+const GAME_VERSION = "3.4"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -967,24 +967,32 @@ function setupDeckInteractions(deckId, pileType) {
     if (!deckDom) return;
     
     let startX, startY, isDown = false, dragged = false;
+    let lastTouchTime = 0; // Chronomètre pour bloquer le double-clic tactile
 
     function handleDown(e) {
+        if (e.type.startsWith('touch')) lastTouchTime = Date.now();
+        if (e.type.startsWith('mouse') && Date.now() - lastTouchTime < 500) return; // Ignore le faux clic de souris
         if (e.button === 2) return; 
+        
         isDown = true; dragged = false;
         startX = e.clientX || (e.touches && e.touches[0].clientX);
         startY = e.clientY || (e.touches && e.touches[0].clientY);
     }
+    
     function handleMove(e) {
         if (!isDown) return;
         let cx = e.clientX || (e.touches && e.touches[0].clientX);
         let cy = e.clientY || (e.touches && e.touches[0].clientY);
         if (!dragged && (Math.abs(cx - startX) > 10 || Math.abs(cy - startY) > 10)) {
             dragged = true;
-            isDown = false; 
+            isDown = false; // Transfert du contrôle à la carte
             spawnAndDragCard(pileType, cx, cy);
         }
     }
+    
     function handleUp(e) {
+        if (e.type.startsWith('mouse') && Date.now() - lastTouchTime < 500) return; // Ignore le faux clic de souris
+        
         if (isDown && !dragged) {
             drawCard(pileType); 
             saveGameState();
@@ -1000,6 +1008,7 @@ function setupDeckInteractions(deckId, pileType) {
     window.addEventListener('touchmove', handleMove, {passive: true});
     window.addEventListener('touchend', handleUp, {passive: true});
 }
+
 
 async function updateDiscardImages() {
     async function setPileImage(pileArray, elementId) {
