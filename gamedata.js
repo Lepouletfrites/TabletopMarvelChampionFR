@@ -189,7 +189,7 @@ const MARVEL_DB = {
         { id: "legions_of_hydra", name: "Légions de l'Hydra", card_set_code: "legions_of_hydra" },
         { id: "doomsday_chair", name: "Le Siège de l'Apocalypse", card_set_code: "doomsday_chair" },
         { id: "black_order", name: "L'ordre noir", card_set_code: "black_order" },
-        { id: "infinity_gauntlet", name: "Gant de l'Infini", card_set_code: "infinity_gauntlet", start_on_board: ["21129"], secondary_deck: "infinity_gauntlet" },
+        { id: "infinity_gauntlet", name: "Gant de l'Infini", card_set_code: "infinity_gauntlet", start_on_board: ["21129"], secondary_set_code: "infinity_gauntlet" },
         { id: "children_of_thanos", name: "Enfant de thanos", card_set_code: "children_of_thanos" },
 
         // --- Nouveaux Sets Modulaires (Avec card_set_code complétés) ---
@@ -201,7 +201,7 @@ const MARVEL_DB = {
         { id: "running_interference", name: "Interférences", card_set_code: "running_interference" },
         
         // L'Avènement de Crâne Rouge (Rise of Red Skull)
-        { id: "experimental_weapons", name: "Armes Expérimentales", card_set_code: "experimental_weapons" , secondary_deck: "experimental_weapons"},
+        { id: "experimental_weapons", name: "Armes Expérimentales", card_set_code: "experimental_weapons" , secondary_set_code: "experimental_weapons"},
         { id: "hydra_assault", name: "Assaut de l'Hydra", card_set_code: "hydra_assault" },
         { id: "hydra_patrol", name: "Patrouille de l'Hydra", card_set_code: "hydra_patrol" },
         { id: "weapon_master", name: "Maître d'Armes", card_set_code: "weapon_master" },
