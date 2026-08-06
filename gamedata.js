@@ -118,14 +118,7 @@ const MARVEL_DB = {
             default_modulars: ["under_attack"],
             start_on_board: ["01140"]
         },
-        {
-            id: "thanos",
-            name: "Thanos (L'Ombre du Titan Fou)",
-            card_set_code: "thanos",
-            stages: ["21111", "21112", "21113"], 
-            schemes: ["21114", "21115"],         
-            default_modulars: ["infinity_gauntlet","children_of_thanos","black_order"]
-        },
+       
 
         // --- Nouveaux Méchants (Avec card_set_code complétés) ---
         { id: "green_goblin_risky_business", name: "Le Bouffon Vert - Business en Risque", card_set_code: "risky_business", stages: [], schemes: [], default_modulars: ["goblin_gimmicks"] },
@@ -151,6 +144,14 @@ const MARVEL_DB = {
         { id: "ronan", name: "Ronan l'Accusateur", card_set_code: "ronan", stages: [], schemes: [], default_modulars: ["kree_militants"] },
         { id: "ebony_maw", name: "Ebony Maw", card_set_code: "ebony_maw", stages: [], schemes: [], default_modulars: ["black_order"] },
         { id: "tower_defense", name: "Défense de la Tour", card_set_code: "tower_defense", stages: [], schemes: [], default_modulars: ["black_order"] },
+        {
+            id: "thanos",
+            name: "Thanos (L'Ombre du Titan Fou)",
+            card_set_code: "thanos",
+            stages: ["21111", "21112", "21113"], 
+            schemes: ["21114", "21115"],         
+            default_modulars: ["infinity_gauntlet","children_of_thanos","black_order"]
+        },
         { id: "hela", name: "Hela", card_set_code: "hela", stages: [], schemes: [], default_modulars: ["legions_of_hel"] },
         { id: "loki", name: "Loki", card_set_code: "loki", stages: [], schemes: [], default_modulars: ["enchantress"] },
         { id: "the_hood", name: "Le Capuchon (The Hood)", card_set_code: "the_hood", stages: [], schemes: [], default_modulars: ["streets_of_mayhem"] },
@@ -188,7 +189,7 @@ const MARVEL_DB = {
         { id: "legions_of_hydra", name: "Légions de l'Hydra", card_set_code: "legions_of_hydra" },
         { id: "doomsday_chair", name: "Le Siège de l'Apocalypse", card_set_code: "doomsday_chair" },
         { id: "black_order", name: "L'ordre noir", card_set_code: "black_order" },
-        { id: "infinity_gauntlet", name: "Gant de l'Infini", card_set_code: "infinity_gauntlet", start_on_board: ["21129"], secondary_deck: ["21130", "21131", "21132", "21133", "21134", "21135"] },
+        { id: "infinity_gauntlet", name: "Gant de l'Infini", card_set_code: "infinity_gauntlet", start_on_board: ["21129"], secondary_deck: "infinity_gauntlet" },
         { id: "children_of_thanos", name: "Enfant de thanos", card_set_code: "children_of_thanos" },
 
         // --- Nouveaux Sets Modulaires (Avec card_set_code complétés) ---
@@ -200,7 +201,7 @@ const MARVEL_DB = {
         { id: "running_interference", name: "Interférences", card_set_code: "running_interference" },
         
         // L'Avènement de Crâne Rouge (Rise of Red Skull)
-        { id: "experimental_weapons", name: "Armes Expérimentales", card_set_code: "experimental_weapons" },
+        { id: "experimental_weapons", name: "Armes Expérimentales", card_set_code: "experimental_weapons" , secondary_deck: "experimental_weapons"},
         { id: "hydra_assault", name: "Assaut de l'Hydra", card_set_code: "hydra_assault" },
         { id: "hydra_patrol", name: "Patrouille de l'Hydra", card_set_code: "hydra_patrol" },
         { id: "weapon_master", name: "Maître d'Armes", card_set_code: "weapon_master" },
