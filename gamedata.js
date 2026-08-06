@@ -188,9 +188,7 @@ const MARVEL_DB = {
         { id: "under_attack", name: "En Pleine Attaque", card_set_code: "under_attack" },
         { id: "legions_of_hydra", name: "Légions de l'Hydra", card_set_code: "legions_of_hydra" },
         { id: "doomsday_chair", name: "Le Siège de l'Apocalypse", card_set_code: "doomsday_chair" },
-        { id: "black_order", name: "L'ordre noir", card_set_code: "black_order" },
-        { id: "infinity_gauntlet", name: "Gant de l'Infini", card_set_code: "infinity_gauntlet", start_on_board: ["21129"], secondary_set_code: "infinity_gauntlet" },
-        { id: "children_of_thanos", name: "Enfant de thanos", card_set_code: "children_of_thanos" },
+        
 
         // --- Nouveaux Sets Modulaires (Avec card_set_code complétés) ---
         
@@ -222,6 +220,9 @@ const MARVEL_DB = {
 
         // L'Ombre du Titan Fou (Mad Titan's Shadow)
         { id: "enchantress", name: "L'Enchanteresse", card_set_code: "enchantress" },
+        { id: "black_order", name: "L'ordre noir", card_set_code: "black_order" },
+        { id: "infinity_gauntlet", name: "Gant de l'Infini", card_set_code: "infinity_gauntlet", start_on_board: ["21129"], secondary_set_code: "infinity_gauntlet" },
+        { id: "children_of_thanos", name: "Enfant de thanos", card_set_code: "children_of_thanos" },
         { id: "galactic_armory", name: "Armurerie Galactique", card_set_code: "galactic_armory" },
         { id: "legions_of_hel", name: "Légions de Hel", card_set_code: "legions_of_hel" },
         { id: "frost_giants", name: "Géants des Glaces", card_set_code: "frost_giants" },
