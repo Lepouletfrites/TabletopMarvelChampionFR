@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.9"; // Délai sur le clic simple pour permettre le double-clic sans conflit de zoom
+const GAME_VERSION = "3.4"; // Automatisation des decks secondaires via secondary_set_code
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -290,12 +290,10 @@ async function fetchAPI(cardCode) {
         } catch (e) {}
     }
 
-    // --- NOUVEAUTÉ : GESTION DES RÉÉDITIONS ---
-    // On applique ça uniquement aux cartes du deck joueur pour éviter de casser les héros
+    // --- GESTION DES RÉÉDITIONS ---
     const playerTypes = ['ally', 'event', 'resource', 'upgrade', 'support'];
     if (cardData.name && playerTypes.includes(cardData.type_code)) {
         
-        // On cherche toutes les cartes locales qui ont EXACTEMENT le même nom (et sous-nom s'il y en a un)
         let matches = Object.values(localDatabase).filter(c => 
             c.name === cardData.name && 
             c.type_code === cardData.type_code &&
@@ -303,12 +301,8 @@ async function fetchAPI(cardCode) {
         );
         
         if (matches.length > 0) {
-            // On trie les résultats par code (le plus petit code est la plus vieille édition)
             matches.sort((a, b) => parseInt(a.code) - parseInt(b.code));
-            
-            // Si la version la plus ancienne a un code différent de ce que le deck demande, on fait l'échange !
             if (matches[0].code !== cardData.code) {
-                console.log(`🔄 Réédition détectée : ${cardData.name} (${cardCode}) remplacée par l'originale (${matches[0].code}).`);
                 return matches[0];
             }
         }
@@ -316,7 +310,6 @@ async function fetchAPI(cardCode) {
     
     return cardData;
 }
-
 
 function getImageUrl(cardData) {
     if (!cardData) return '';
@@ -347,25 +340,27 @@ function getImageUrl(cardData) {
 // 3. GÉNÉRATION DES PARTIES
 // ==========================================
 
-btnLoadHero.addEventListener('click', async () => {
-    const hId = heroSelect.value;
-    if (!hId) return;
-    const heroDef = MARVEL_DB.heroes.find(h => h.id === hId);
-    if (!heroDef) return;
+// --- NOUVELLE FONCTION : Générer un deck via le nom du set ---
+function buildDeckFromSetCode(setCode, excludeList = []) {
+    let deck = [];
+    Object.values(localDatabase).forEach(card => {
+        if (card.card_set_code === setCode && !excludeList.includes(card.code)) {
+            // On exclut les méchants et manigances principales par sécurité
+            if (!['villain', 'main_scheme'].includes(card.type_code)) {
+                for (let i = 0; i < (card.quantity || 1); i++) {
+                    deck.push(card.code);
+                }
+            }
+        }
+    });
+    return deck;
+}
 
-    modalMenu.classList.add('hidden');
-    myDeck = [...heroDef.deck];
-    await setupHero(heroDef.hero_code, heroDef.id, heroDef.secondary_deck);
-    saveGameState();
-});
-
-// --- NOUVELLE FONCTION : Trouve la carte de base d'une version alternative ---
+// --- NOUVELLE FONCTION : Trouver la carte de base d'une version alternative ---
 async function getBaseCardCode(code) {
-    // On vérifie d'abord dans ta base locale
     if (localDatabase && localDatabase[code] && localDatabase[code].duplicate_of) {
         return await getBaseCardCode(localDatabase[code].duplicate_of);
     }
-    // Sinon, on interroge MarvelCDB pour être sûr
     try {
         let res = await fetch(`https://marvelcdb.com/api/public/card/${code}.json`);
         if (res.ok) {
@@ -376,9 +371,23 @@ async function getBaseCardCode(code) {
         }
     } catch (e) {}
     
-    return code; // Si ce n'est pas une alternative, on garde le code normal
+    return code; 
 }
 
+btnLoadHero.addEventListener('click', async () => {
+    const hId = heroSelect.value;
+    if (!hId) return;
+    const heroDef = MARVEL_DB.heroes.find(h => h.id === hId);
+    if (!heroDef) return;
+
+    modalMenu.classList.add('hidden');
+    myDeck = [...heroDef.deck];
+    
+    let secDeck = heroDef.secondary_set_code ? buildDeckFromSetCode(heroDef.secondary_set_code, heroDef.start_on_board || []) : heroDef.secondary_deck;
+    
+    await setupHero(heroDef.hero_code, heroDef.id, secDeck);
+    saveGameState();
+});
 
 btnLoadCustomDeck.addEventListener('click', async () => {
     const inputVal = deckUrlInput.value.trim();
@@ -409,12 +418,10 @@ btnLoadCustomDeck.addEventListener('click', async () => {
 
         myDeck = [];
         for (const [code, quantity] of Object.entries(deckData.slots)) {
-            // CORRECTION : On convertit le code alt-art en code de base avant de l'ajouter au deck
             let baseCode = await getBaseCardCode(code);
             for (let i = 0; i < quantity; i++) myDeck.push(baseCode);
         }
 
-        // CORRECTION : On s'assure aussi que le Héros n'est pas un alt-art
         const rawHeroCode = deckData.hero_code || deckData.investigator_code;
         const heroCode = await getBaseCardCode(rawHeroCode);
         
@@ -424,7 +431,7 @@ btnLoadCustomDeck.addEventListener('click', async () => {
             const match = MARVEL_DB.heroes.find(h => h.hero_code.replace(/[ab]$/,'') === heroCode.replace(/[ab]$/,''));
             if (match) {
                 dbHeroId = match.id;
-                dbSecondaryDeck = match.secondary_deck;
+                dbSecondaryDeck = match.secondary_set_code ? buildDeckFromSetCode(match.secondary_set_code, match.start_on_board || []) : match.secondary_deck;
             }
         }
 
@@ -441,7 +448,6 @@ btnLoadCustomDeck.addEventListener('click', async () => {
         btnLoadCustomDeck.innerText = "Charger via URL";
     }
 });
-
 
 async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
     let coreCode = heroBaseCode.replace(/[ab]$/, '');
@@ -525,8 +531,8 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         hdd.classList.remove('hidden');
         hd.style.left = (spawnX + 300) + "px"; 
         hd.style.top = (spawnY) + "px";
-        hdd.style.left = (spawnX + 440) + "px";
-        hdd.style.top = (spawnY) + "px";
+        hd.style.left = (spawnX + 440) + "px";
+        hd.style.top = (spawnY) + "px";
     }
 
     if (btnAddNemesis && window.currentHeroNemesis.set.length > 0) {
@@ -668,16 +674,21 @@ btnLoadVillain.addEventListener('click', async () => {
         vSecCount++;
     }
 
-    if (villainDef.secondary_deck) {
-        deployVillainSecDeck(villainDef.secondary_deck, "DECK<br>SPÉCIAL");
-    }
-
     encounterDeck = [];
     let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
-
     let excludedEncounterCodes = [];
-    if (villainDef.secondary_deck) excludedEncounterCodes.push(...villainDef.secondary_deck);
 
+    // 1. Deck Secondaire du Méchant Principal
+    let vSecDeck = null;
+    if (villainDef.secondary_set_code) vSecDeck = buildDeckFromSetCode(villainDef.secondary_set_code, villainCardsToSpawn);
+    else if (villainDef.secondary_deck) vSecDeck = villainDef.secondary_deck;
+
+    if (vSecDeck && vSecDeck.length > 0) {
+        deployVillainSecDeck(vSecDeck, "DECK<br>SPÉCIAL");
+        excludedEncounterCodes.push(...vSecDeck);
+    }
+
+    // 2. Préparation des Sets Modulaires
     const useDefaultMod = document.getElementById('mod-default-checkbox').checked;
     const selectedMods = Array.from(document.querySelectorAll('.mod-checkbox:checked')).map(cb => cb.value);
     
@@ -688,7 +699,16 @@ btnLoadVillain.addEventListener('click', async () => {
 
     modularsToLoad.forEach(mId => {
         let mDef = MARVEL_DB.modulars.find(m => m.id === mId);
-        if (mDef && mDef.secondary_deck) excludedEncounterCodes.push(...mDef.secondary_deck);
+        if (mDef) {
+            let mSecDeck = null;
+            if (mDef.secondary_set_code) mSecDeck = buildDeckFromSetCode(mDef.secondary_set_code, mDef.start_on_board || []);
+            else if (mDef.secondary_deck) mSecDeck = mDef.secondary_deck;
+            
+            if (mSecDeck && mSecDeck.length > 0) {
+                excludedEncounterCodes.push(...mSecDeck);
+                mDef.resolved_secondary_deck = mSecDeck; 
+            }
+        }
     });
 
     if (villainDef.card_set_code) {
@@ -739,9 +759,12 @@ btnLoadVillain.addEventListener('click', async () => {
                 });
             }
 
-            if (modDef.secondary_deck) {
+            if (modDef.resolved_secondary_deck) {
+                deployVillainSecDeck(modDef.resolved_secondary_deck, modDef.name.substring(0, 15).toUpperCase());
+            } else if (modDef.secondary_deck) {
                 deployVillainSecDeck(modDef.secondary_deck, modDef.name.substring(0, 15).toUpperCase());
             }
+
             if (modDef.start_on_board) {
                 villainCardsToSpawn.push(...modDef.start_on_board);
             }
@@ -931,6 +954,7 @@ function reshufflePile(type, pile, discard) {
     }
 }
 
+// Fonction de piochage classique (clic simple)
 async function drawCard(type) {
     let pile, discard;
     let vIndex = -1;
@@ -1031,13 +1055,13 @@ function setupDeckInteractions(deckId, pileType) {
     
     let startX, startY, isDown = false, dragged = false;
     let lastTouchTime = 0; 
-    let pressStartTime = 0; // Nouveau : chronomètre pour mesurer la durée de l'appui
+    let pressStartTime = 0; 
 
     function handleDown(e) {
-        pressStartTime = Date.now(); // On enregistre l'heure de début de l'appui
+        pressStartTime = Date.now(); 
         
         if (e.type.startsWith('touch')) lastTouchTime = Date.now();
-        if (e.type.startsWith('mouse') && Date.now() - lastTouchTime < 500) return; // Ignore le faux clic de souris
+        if (e.type.startsWith('mouse') && Date.now() - lastTouchTime < 500) return; 
         if (e.button === 2) return; 
         
         isDown = true; dragged = false;
@@ -1051,17 +1075,16 @@ function setupDeckInteractions(deckId, pileType) {
         let cy = e.clientY || (e.touches && e.touches[0].clientY);
         if (!dragged && (Math.abs(cx - startX) > 10 || Math.abs(cy - startY) > 10)) {
             dragged = true;
-            isDown = false; // Transfert du contrôle à la carte
+            isDown = false; 
             spawnAndDragCard(pileType, cx, cy);
         }
     }
     
     function handleUp(e) {
-        if (e.type.startsWith('mouse') && Date.now() - lastTouchTime < 500) return; // Ignore le faux clic de souris
+        if (e.type.startsWith('mouse') && Date.now() - lastTouchTime < 500) return; 
         
         let pressDuration = Date.now() - pressStartTime;
         
-        // CORRECTION : Si on a maintenu l'appui plus de 400ms (appui long sur tablette), on annule la pioche !
         if (pressDuration > 400) {
             isDown = false;
             return;
@@ -1345,7 +1368,6 @@ function setupCardInteractions(card) {
             if (!card.classList.contains('in-hand')) card.classList.toggle('exhausted');
             e.preventDefault();
             
-            // Annule le délai de zoom si c'est un double-clic (mobile)
             if (card.clickTimeout) {
                 clearTimeout(card.clickTimeout);
                 card.clickTimeout = null;
@@ -1566,7 +1588,6 @@ function makeDraggable(element) {
                 applyTokenModeToCard(element, activeTokenType, activeTokenAction);
                 saveGameState();
             } else {
-                // Délai pour différencier un clic simple d'un double clic
                 if (element.clickTimeout) {
                     clearTimeout(element.clickTimeout);
                     element.clickTimeout = null;
@@ -2117,7 +2138,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const heroHpInput = document.getElementById('hero-hp-input');
     if (heroHpInput) heroHpInput.style.display = 'none'; 
 
-    // --- INJECTION DES BOUTONS DE CÔTÉ ET BANNIES ---
     const tokenBar = document.getElementById('token-bar');
     if (tokenBar) {
         tokenBar.insertAdjacentHTML('beforeend', `
@@ -2136,7 +2156,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
     
-    // --- ATTACHEMENT DU GLISSER-DÉPOSER POUR LES PIOCHES ---
     setupDeckInteractions('deck', 'player');
     setupDeckInteractions('encounter-deck', 'encounter');
     setupDeckInteractions('board-hero-deck', 'hero-sec');
