@@ -130,12 +130,44 @@ const MARVEL_DB = {
             card_set_code: "crossbones",
             stages: ["04058","04059","04060"],
             schemes: ["04061","04062","04063"],
-            default_modulars: ["experimental_weapons","legions_of_hydra","hydra_assault","weapon_master"]
+            default_modulars: ["exper_weapon","legions_of_hydra","hydra_assault","weapon_master"]
         },
-        { id: "absorbing_man", name: "L'Homme-Absorbant", card_set_code: "absorbing_man", stages: [], schemes: [], default_modulars: [] },
-        { id: "taskmaster", name: "Le Taskmaster", card_set_code: "taskmaster", stages: [], schemes: [], default_modulars: [] },
-        { id: "zola", name: "Arnim Zola", card_set_code: "zola", stages: [], schemes: [], default_modulars: [] },
-        { id: "red_skull", name: "Crâne Rouge", card_set_code: "red_skull", stages: [], schemes: [], default_modulars: [] },
+        { 
+            id: "absorbing_man", 
+            name: "L'Homme-Absorbant", 
+            card_set_code: "absorbing_man",
+            stages: ["04076","04077","04078"], 
+            schemes: ["04079"], 
+            default_modulars: ["hydra_patrol"]
+        },
+        { 
+            id: "taskmaster",
+            name: "Le Taskmaster", 
+            card_set_code: "taskmaster",
+            stages: ["04093","04094","04095"], 
+            schemes: ["04096"], 
+            default_modulars: ["weapon_master","hydra_patrol"],
+            start_on_board: ["04154"]
+        },
+        {
+            id: "zola", 
+            name: "Arnim Zola", 
+            card_set_code: "zola", 
+            stages: ["04109","04110","04111"],
+            schemes: ["04112","04113"], 
+            default_modulars: ["under_attack"]
+        },
+        {
+            id: "red_skull",
+            name: "Crâne Rouge",
+            card_set_code: "red_skull",
+            stages: ["04125","04126","04127"], 
+            schemes: ["04128","04129"], 
+            default_modulars: ["hydra_assault","hydra_patrol"],
+            secondary_deck: ["04140", "04141", "04142", "04143", "04144"],
+            start_on_board: ["04139"]
+        
+        },
         { id: "kang", name: "Kang le Conquérant", card_set_code: "kang", stages: [], schemes: [], default_modulars: ["temporal"] },
         { id: "drang", name: "Drang de la Confrérie Badoon", card_set_code: "brotherhood_of_badoon", stages: [], schemes: [], default_modulars: ["band_of_badoon"] },
         { id: "collector_infiltrate", name: "Le Collectionneur - Infiltration du Musée", card_set_code: "infiltrate_the_museum", stages: [], schemes: [], default_modulars: ["galactic_artifacts"] },
@@ -199,7 +231,7 @@ const MARVEL_DB = {
         { id: "running_interference", name: "Interférences", card_set_code: "running_interference" },
         
         // L'Avènement de Crâne Rouge (Rise of Red Skull)
-        { id: "experimental_weapons", name: "Armes Expérimentales", card_set_code: "experimental_weapons" , secondary_set_code: "experimental_weapons"},
+        { id: "exper_weapon", name: "Armes Expérimentales", card_set_code: "exper_weapon" , secondary_set_code: "exper_weapon"},
         { id: "hydra_assault", name: "Assaut de l'Hydra", card_set_code: "hydra_assault" },
         { id: "hydra_patrol", name: "Patrouille de l'Hydra", card_set_code: "hydra_patrol" },
         { id: "weapon_master", name: "Maître d'Armes", card_set_code: "weapon_master" },
