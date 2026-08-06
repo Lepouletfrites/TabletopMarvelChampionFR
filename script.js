@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "4.1"; // Automatisation des decks secondaires via secondary_set_code
+const GAME_VERSION = "4.2"; // Automatisation des decks secondaires via secondary_set_code
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
