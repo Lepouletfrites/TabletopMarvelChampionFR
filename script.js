@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "3.4"; // Automatisation des decks secondaires via secondary_set_code
+const GAME_VERSION = "4.0"; // Automatisation des decks secondaires via secondary_set_code
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -332,8 +332,17 @@ function getImageUrl(cardData) {
         localFileName += '.c';
     }
 
-    const localImageUrl = `ImageFr/${packName}/${localFileName}.jpg`;
-    return localImageUrl;
+    // --- DÉTECTION AUTOMATIQUE : Local vs En ligne ---
+    const isLocal = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (isLocal) {
+        // 1. Si tu lances le fichier index.html directement depuis ton PC
+        return `ImageFr/${packName}/${localFileName}.jpg`;
+    } else {
+        // 2. Si tu es sur GitHub Pages (En ligne)
+        // ATTENTION : Remplace "NOM_DU_DEPOT_IMAGES" par le vrai nom du 2ème dépôt que tu as créé pour tes images.
+        return `https://raw.githubusercontent.com/Lepouletfrites/vttmcfr-images/main/ImageFr/${packName}/${localFileName}.jpg`;
+    }
 }
 
 // ==========================================
