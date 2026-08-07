@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "4.4"; // Ajout des sets modulaires obligatoires (mandatory_modulars)
+const GAME_VERSION = "4.5"; // Correction des IDs avec suffixe (ex: 16061a) et proxy CORS
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -254,20 +254,25 @@ function initMenus() {
 }
 
 // ==========================================
-// 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE ET GESTION D'IMAGES
+// 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE ET GESTION D'IMAGES (AVEC PROXY CORS)
 // ==========================================
 async function fetchAPI(cardCode) {
     let cardData = null;
     
-    // 1. Chercher dans la base locale
+    // 1. Chercher dans cards.js (localDatabase)
     if (localDatabase && localDatabase[cardCode]) {
         cardData = localDatabase[cardCode];
     } else {
-        // 2. Chercher sur MarvelCDB
+        // 2. Si pas trouvé en local, on passe par un proxy CORS pour MarvelCDB
         try {
-            let resEN = await fetch(`https://marvelcdb.com/api/public/card/${cardCode}.json`);
+            const targetUrl = `https://marvelcdb.com/api/public/card/${cardCode}.json`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            
+            let resEN = await fetch(proxyUrl);
             if (resEN.ok) cardData = await resEN.json();
-        } catch (e) {}
+        } catch (e) {
+            console.error("Erreur de récupération de la carte :", cardCode, e);
+        }
     }
     
     if (!cardData) return null;
@@ -277,10 +282,13 @@ async function fetchAPI(cardCode) {
         return await fetchAPI(cardData.duplicate_of);
     }
 
-    // 3. Traduction FR si la carte vient d'être téléchargée
+    // 3. Traduction FR si la carte vient d'être téléchargée via l'API
     if (!localDatabase[cardCode]) {
         try {
-            let resFR = await fetch(`https://fr.marvelcdb.com/api/public/card/${cardCode}.json`);
+            const targetUrlFR = `https://fr.marvelcdb.com/api/public/card/${cardCode}.json`;
+            const proxyUrlFR = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrlFR)}`;
+            
+            let resFR = await fetch(proxyUrlFR);
             if (resFR.ok) {
                 let frData = await resFR.json();
                 if (frData.name) cardData.name = frData.name;
@@ -340,7 +348,6 @@ function getImageUrl(cardData) {
         return `ImageFr/${packName}/${localFileName}.jpg`;
     } else {
         // 2. Si tu es sur GitHub Pages (En ligne)
-        // ATTENTION : Remplace "NOM_DU_DEPOT_IMAGES" par le vrai nom du 2ème dépôt que tu as créé pour tes images.
         return `https://raw.githubusercontent.com/Lepouletfrites/vttmcfr-images/main/ImageFr/${packName}/${localFileName}.jpg`;
     }
 }
@@ -371,7 +378,9 @@ async function getBaseCardCode(code) {
         return await getBaseCardCode(localDatabase[code].duplicate_of);
     }
     try {
-        let res = await fetch(`https://marvelcdb.com/api/public/card/${code}.json`);
+        const targetUrl = `https://marvelcdb.com/api/public/card/${code}.json`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        let res = await fetch(proxyUrl);
         if (res.ok) {
             let data = await res.json();
             if (data.duplicate_of) {
@@ -418,7 +427,8 @@ btnLoadCustomDeck.addEventListener('click', async () => {
 
         for (let url of endpoints) {
             try {
-                let res = await fetch(url);
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                let res = await fetch(proxyUrl);
                 if (res.ok) { deckData = await res.json(); break; }
             } catch (e) {}
         }
@@ -627,26 +637,32 @@ btnLoadVillain.addEventListener('click', async () => {
         if (code !== currentVillainStages[currentVillainStageIndex]) setAsideCards.push(code);
     });
     currentVillainSchemes.forEach(code => {
-        let baseCode = code.replace(/[ab]$/, '');
-        if (code !== currentVillainSchemes[0] && baseCode !== currentVillainSchemes[0].replace(/[ab]$/, '')) {
-            setAsideCards.push(baseCode);
+        if (code !== currentVillainSchemes[0]) {
+            setAsideCards.push(code);
         }
     });
 
     const spawnX = CENTER_X;
     const spawnY = CENTER_Y - 400; 
 
+    // --- CHARGEMENT DU MÉCHANT ---
     if (currentVillainStages.length > currentVillainStageIndex) {
-        let vData = await fetchAPI(currentVillainStages[currentVillainStageIndex]);
+        let vCode = currentVillainStages[currentVillainStageIndex];
+        // On essaie le code exact (ex: 16058a) puis sans le suffixe au cas où (ex: 16058)
+        let vData = await fetchAPI(vCode) || await fetchAPI(vCode.replace(/[ab]$/, ''));
         if (vData) {
             let vDom = buildCardDOM(vData);
             putOnBoardAt(vDom, spawnX, spawnY, false);
         }
     }
 
+    // --- CHARGEMENT DE LA MANIGANCE PRINCIPALE ---
     if (currentVillainSchemes.length > 0) {
-        let baseCode = currentVillainSchemes[0].replace(/[ab]$/, '');
-        let frontData = await fetchAPI(baseCode); 
+        let rawCode = currentVillainSchemes[0];
+        let baseCode = rawCode.replace(/[ab]$/, '');
+        
+        // On essaie d'abord avec le code exact fourni (ex: 16061a) puis avec a/b standard
+        let frontData = await fetchAPI(rawCode) || await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode); 
         let backData = await fetchAPI(baseCode + 'b'); 
         
         if (frontData) {
@@ -704,12 +720,10 @@ btnLoadVillain.addEventListener('click', async () => {
     
     let modularsToLoad = new Set(selectedMods);
     
-    // --- NOUVEAU : Chargement des sets modulaires OBLIGATOIRES (sans vérifier la case cochée) ---
     if (villainDef.mandatory_modulars) {
         villainDef.mandatory_modulars.forEach(modId => modularsToLoad.add(modId));
     }
 
-    // --- Chargement des sets modulaires par DÉFAUT (si la case est cochée) ---
     if (useDefaultMod && villainDef.default_modulars) {
         villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
     }
@@ -805,7 +819,8 @@ btnLoadVillain.addEventListener('click', async () => {
         }
         
         let baseCode = code.replace(/[ab]$/, '');
-        let frontData = await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode);
+        // On essaie d'abord avec le code exact fourni puis on ajoute les suffixes
+        let frontData = await fetchAPI(code) || await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode);
         let backData = await fetchAPI(baseCode + 'b');
 
         if (frontData) {
@@ -1464,19 +1479,23 @@ menuNextScheme.addEventListener('click', async () => {
         
         let carryOverAcceleration = parseInt(targetCard.dataset.acceleration) || 0;
         
-        let oldCode = currentVillainSchemes[currentSchemeIndex].replace(/[ab]$/, '');
-        let codeIdx = setAsideCards.indexOf(oldCode);
+        let oldRawCode = currentVillainSchemes[currentSchemeIndex];
+        let oldBaseCode = oldRawCode.replace(/[ab]$/, '');
+        
+        let codeIdx = setAsideCards.indexOf(oldRawCode) !== -1 ? setAsideCards.indexOf(oldRawCode) : setAsideCards.indexOf(oldBaseCode);
         if(codeIdx !== -1) setAsideCards.splice(codeIdx, 1);
         
         targetCard.remove(); 
         currentSchemeIndex++;
-        let baseCode = currentVillainSchemes[currentSchemeIndex].replace(/[ab]$/, '');
         
-        let newIdx = setAsideCards.indexOf(baseCode);
+        let nextRawCode = currentVillainSchemes[currentSchemeIndex];
+        let nextBaseCode = nextRawCode.replace(/[ab]$/, '');
+        
+        let newIdx = setAsideCards.indexOf(nextRawCode) !== -1 ? setAsideCards.indexOf(nextRawCode) : setAsideCards.indexOf(nextBaseCode);
         if (newIdx !== -1) setAsideCards.splice(newIdx, 1);
         
-        let frontData = await fetchAPI(baseCode); 
-        let backData = await fetchAPI(baseCode + 'b'); 
+        let frontData = await fetchAPI(nextRawCode) || await fetchAPI(nextBaseCode + 'a') || await fetchAPI(nextBaseCode); 
+        let backData = await fetchAPI(nextBaseCode + 'b'); 
         
         if (frontData) {
             let sDom = buildCardDOM(frontData, backData ? getImageUrl(backData) : null);
@@ -1508,7 +1527,7 @@ menuNextVillain.addEventListener('click', async () => {
         let newIdx = setAsideCards.indexOf(nextCode);
         if (newIdx !== -1) setAsideCards.splice(newIdx, 1);
 
-        let vData = await fetchAPI(nextCode);
+        let vData = await fetchAPI(nextCode) || await fetchAPI(nextCode.replace(/[ab]$/, ''));
         if (vData) {
             let vDom = buildCardDOM(vData);
             putOnBoardAt(vDom, x, y, false);
