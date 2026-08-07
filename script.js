@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "4.2"; // Automatisation des decks secondaires via secondary_set_code
+const GAME_VERSION = "4.3"; // Retrait de l'auto-environnement et ajout de start_set_aside
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -685,6 +685,7 @@ btnLoadVillain.addEventListener('click', async () => {
 
     encounterDeck = [];
     let villainCardsToSpawn = [...(villainDef.start_on_board || [])];
+    let cardsToSetAside = [...(villainDef.start_set_aside || [])];
     let excludedEncounterCodes = [];
 
     // 1. Deck Secondaire du Méchant Principal
@@ -724,12 +725,8 @@ btnLoadVillain.addEventListener('click', async () => {
         Object.values(localDatabase).forEach(card => {
             if (card.card_set_code === villainDef.card_set_code && !['villain', 'main_scheme'].includes(card.type_code)) {
                 if (!excludedEncounterCodes.includes(card.code)) {
-                    if (card.type_code === 'environment' && !villainCardsToSpawn.includes(card.code)) {
-                        villainCardsToSpawn.push(card.code);
-                    } else if (card.type_code !== 'environment') {
-                        for (let i = 0; i < (card.quantity || 1); i++) {
-                            encounterDeck.push(card.code);
-                        }
+                    for (let i = 0; i < (card.quantity || 1); i++) {
+                        encounterDeck.push(card.code);
                     }
                 }
             }
@@ -777,8 +774,22 @@ btnLoadVillain.addEventListener('click', async () => {
             if (modDef.start_on_board) {
                 villainCardsToSpawn.push(...modDef.start_on_board);
             }
+            if (modDef.start_set_aside) {
+                cardsToSetAside.push(...modDef.start_set_aside);
+            }
         }
     });
+
+    // --- NOUVEAU : PLACER LES CARTES DE CÔTÉ ---
+    for (let code of cardsToSetAside) {
+        let idx = encounterDeck.indexOf(code);
+        if (idx !== -1) {
+            encounterDeck.splice(idx, 1);
+        }
+        if (!setAsideCards.includes(code)) {
+            setAsideCards.push(code);
+        }
+    }
 
     for (let code of villainCardsToSpawn) {
         let idx = encounterDeck.indexOf(code);
