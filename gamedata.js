@@ -179,7 +179,7 @@ const MARVEL_DB = {
             name: "Drang de la Confrérie Badoon",
             card_set_code: "brotherhood_of_badoon",
             stages: ["16058","16059","16060"], 
-            schemes: ["16061","16062"],
+            schemes: ["16061a","16062a"],
             mandatory_modulars: ["ship_command"],
             default_modulars: ["band_of_badoon"],
             start_on_board: ["16063","16142"]
@@ -191,7 +191,7 @@ const MARVEL_DB = {
             name: "Nébula (Méchante)",
             card_set_code: "nebula_villain",
             stages: ["16088","16089","16090"],
-            schemes: ["16091","16092"],
+            schemes: ["16091a","16092a"],
             mandatory_modulars: ["power_stone","ship_command"],
             default_modulars: ["space_pirates"],
             start_on_board: ["16149","16093","16142"]
@@ -201,7 +201,7 @@ const MARVEL_DB = {
             name: "Ronan l'Accusateur", 
             card_set_code: "ronan", 
             stages: ["16103","16104","16105"], 
-            schemes: ["16106","16106"],
+            schemes: ["16106a","16107a"],
             mandatory_modulars: ["power_stone","ship_command"],
             default_modulars: ["kree_militants"],
             start_on_board: ["16108","16109","16142","16149"]
