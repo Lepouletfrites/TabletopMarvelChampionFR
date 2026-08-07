@@ -502,17 +502,21 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
         const heroDef = MARVEL_DB.heroes.find(h => h.id === currentHeroId);
         if (heroDef && heroDef.start_on_board) {
             for (let code of heroDef.start_on_board) {
+                // Si la carte est dans le deck du héros, on la retire de la pioche
                 let idx = myDeck.indexOf(code);
                 if (idx !== -1) {
                     myDeck.splice(idx, 1);
-                    let cardData = await fetchAPI(code);
-                    if (cardData) {
-                        let cardDom = buildCardDOM(cardData);
-                        putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
-                    }
+                }
+                
+                // On va chercher la carte dans cards.js et on la pose TOUJOURS sur le plateau
+                let cardData = await fetchAPI(code);
+                if (cardData) {
+                    let cardDom = buildCardDOM(cardData);
+                    putOnBoardAt(cardDom, spawnX + 160 + (Math.random() * 40), spawnY + (Math.random() * 40 - 20), false);
                 }
             }
         }
+    }
     }
 
     if (secondaryDeckData) {
