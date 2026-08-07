@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "4.8"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
+const GAME_VERSION = "4.9"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
