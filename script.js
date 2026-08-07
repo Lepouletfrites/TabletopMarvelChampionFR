@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "4.5"; // Correction des IDs avec suffixe (ex: 16061a) et proxy CORS
+const GAME_VERSION = "4.6"; // Suppression totale des appels API pour les cartes (100% local)
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -254,54 +254,39 @@ function initMenus() {
 }
 
 // ==========================================
-// 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE ET GESTION D'IMAGES (AVEC PROXY CORS)
+// 2. FONCTIONS DE TÉLÉCHARGEMENT DE CARTE (100% LOCAL)
 // ==========================================
 async function fetchAPI(cardCode) {
+    if (!localDatabase) return null;
+
     let cardData = null;
     
-    // 1. Chercher dans cards.js (localDatabase)
-    if (localDatabase && localDatabase[cardCode]) {
+    // 1. Recherche exacte (ex: "01001a" ou "01001")
+    if (localDatabase[cardCode]) {
         cardData = localDatabase[cardCode];
-    } else {
-        // 2. Si pas trouvé en local, on passe par un proxy CORS pour MarvelCDB
-        try {
-            const targetUrl = `https://marvelcdb.com/api/public/card/${cardCode}.json`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            
-            let resEN = await fetch(proxyUrl);
-            if (resEN.ok) cardData = await resEN.json();
-        } catch (e) {
-            console.error("Erreur de récupération de la carte :", cardCode, e);
-        }
+    } 
+    // 2. Recherche sans le suffixe "a" ou "b" (ex: on demande "16061a", on trouve "16061")
+    else if (localDatabase[cardCode.replace(/[ab]$/, '')]) {
+        cardData = localDatabase[cardCode.replace(/[ab]$/, '')];
     }
-    
-    if (!cardData) return null;
+    // 3. Recherche avec le suffixe "a" (ex: on demande "16061", on trouve "16061a")
+    else if (localDatabase[cardCode + 'a']) {
+        cardData = localDatabase[cardCode + 'a'];
+    }
 
-    // Gestion des alt-arts (duplicate_of)
+    if (!cardData) {
+        console.warn(`Carte introuvable en local : ${cardCode}`);
+        return null;
+    }
+
+    // Gestion des alt-arts (duplicate_of) en local
     if (cardData.duplicate_of) {
         return await fetchAPI(cardData.duplicate_of);
     }
 
-    // 3. Traduction FR si la carte vient d'être téléchargée via l'API
-    if (!localDatabase[cardCode]) {
-        try {
-            const targetUrlFR = `https://fr.marvelcdb.com/api/public/card/${cardCode}.json`;
-            const proxyUrlFR = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrlFR)}`;
-            
-            let resFR = await fetch(proxyUrlFR);
-            if (resFR.ok) {
-                let frData = await resFR.json();
-                if (frData.name) cardData.name = frData.name;
-                if (frData.text) cardData.text = frData.text;
-                if (frData.traits) cardData.traits = frData.traits;
-            }
-        } catch (e) {}
-    }
-
-    // --- GESTION DES RÉÉDITIONS ---
+    // --- GESTION DES RÉÉDITIONS EN LOCAL ---
     const playerTypes = ['ally', 'event', 'resource', 'upgrade', 'support'];
     if (cardData.name && playerTypes.includes(cardData.type_code)) {
-        
         let matches = Object.values(localDatabase).filter(c => 
             c.name === cardData.name && 
             c.type_code === cardData.type_code &&
@@ -356,7 +341,6 @@ function getImageUrl(cardData) {
 // 3. GÉNÉRATION DES PARTIES
 // ==========================================
 
-// --- NOUVELLE FONCTION : Générer un deck via le nom du set ---
 function buildDeckFromSetCode(setCode, excludeList = []) {
     let deck = [];
     Object.values(localDatabase).forEach(card => {
@@ -372,23 +356,10 @@ function buildDeckFromSetCode(setCode, excludeList = []) {
     return deck;
 }
 
-// --- NOUVELLE FONCTION : Trouver la carte de base d'une version alternative ---
 async function getBaseCardCode(code) {
     if (localDatabase && localDatabase[code] && localDatabase[code].duplicate_of) {
         return await getBaseCardCode(localDatabase[code].duplicate_of);
     }
-    try {
-        const targetUrl = `https://marvelcdb.com/api/public/card/${code}.json`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        let res = await fetch(proxyUrl);
-        if (res.ok) {
-            let data = await res.json();
-            if (data.duplicate_of) {
-                return await getBaseCardCode(data.duplicate_of);
-            }
-        }
-    } catch (e) {}
-    
     return code; 
 }
 
@@ -407,6 +378,7 @@ btnLoadHero.addEventListener('click', async () => {
     saveGameState();
 });
 
+// Le chargement d'un deck custom par URL est LA SEULE FOIS où l'on utilise un Fetch API
 btnLoadCustomDeck.addEventListener('click', async () => {
     const inputVal = deckUrlInput.value.trim();
     const urlMatch = inputVal.match(/(?:decklist|deck)\/(?:view|edit)?\/?(\d+)/);
@@ -648,8 +620,7 @@ btnLoadVillain.addEventListener('click', async () => {
     // --- CHARGEMENT DU MÉCHANT ---
     if (currentVillainStages.length > currentVillainStageIndex) {
         let vCode = currentVillainStages[currentVillainStageIndex];
-        // On essaie le code exact (ex: 16058a) puis sans le suffixe au cas où (ex: 16058)
-        let vData = await fetchAPI(vCode) || await fetchAPI(vCode.replace(/[ab]$/, ''));
+        let vData = await fetchAPI(vCode);
         if (vData) {
             let vDom = buildCardDOM(vData);
             putOnBoardAt(vDom, spawnX, spawnY, false);
@@ -661,8 +632,7 @@ btnLoadVillain.addEventListener('click', async () => {
         let rawCode = currentVillainSchemes[0];
         let baseCode = rawCode.replace(/[ab]$/, '');
         
-        // On essaie d'abord avec le code exact fourni (ex: 16061a) puis avec a/b standard
-        let frontData = await fetchAPI(rawCode) || await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode); 
+        let frontData = await fetchAPI(rawCode); 
         let backData = await fetchAPI(baseCode + 'b'); 
         
         if (frontData) {
@@ -819,8 +789,7 @@ btnLoadVillain.addEventListener('click', async () => {
         }
         
         let baseCode = code.replace(/[ab]$/, '');
-        // On essaie d'abord avec le code exact fourni puis on ajoute les suffixes
-        let frontData = await fetchAPI(code) || await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode);
+        let frontData = await fetchAPI(code);
         let backData = await fetchAPI(baseCode + 'b');
 
         if (frontData) {
@@ -1494,7 +1463,7 @@ menuNextScheme.addEventListener('click', async () => {
         let newIdx = setAsideCards.indexOf(nextRawCode) !== -1 ? setAsideCards.indexOf(nextRawCode) : setAsideCards.indexOf(nextBaseCode);
         if (newIdx !== -1) setAsideCards.splice(newIdx, 1);
         
-        let frontData = await fetchAPI(nextRawCode) || await fetchAPI(nextBaseCode + 'a') || await fetchAPI(nextBaseCode); 
+        let frontData = await fetchAPI(nextRawCode); 
         let backData = await fetchAPI(nextBaseCode + 'b'); 
         
         if (frontData) {
@@ -1527,7 +1496,7 @@ menuNextVillain.addEventListener('click', async () => {
         let newIdx = setAsideCards.indexOf(nextCode);
         if (newIdx !== -1) setAsideCards.splice(newIdx, 1);
 
-        let vData = await fetchAPI(nextCode) || await fetchAPI(nextCode.replace(/[ab]$/, ''));
+        let vData = await fetchAPI(nextCode);
         if (vData) {
             let vDom = buildCardDOM(vData);
             putOnBoardAt(vDom, x, y, false);
