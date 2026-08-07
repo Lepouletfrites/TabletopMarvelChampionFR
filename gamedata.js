@@ -84,7 +84,7 @@ const MARVEL_DB = {
         { id: "deadpool", name: "Deadpool", hero_code: "", deck: [] },
         { id: "bishop", name: "Bishop", hero_code: "", deck: [] },
         { id: "magik", name: "Magik", hero_code: "", deck: [] },
-        { id: "iceman", name: "Iceberg (Iceman)", hero_code: "", deck: [] },
+        { id: "iceman", name: "Iceberg (Iceman)", hero_code: "iceman", deck: [] ,start_set_aside: ["46002","46002","46002","46002","46002","46002"] },
         { id: "jubilee", name: "Jubilé", hero_code: "", deck: [] },
         { id: "nightcrawler", name: "Diable Manquant (Nightcrawler)", hero_code: "", deck: [] },
         { id: "magneto", name: "Magnéto", hero_code: "", deck: [] }
