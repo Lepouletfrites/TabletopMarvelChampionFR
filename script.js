@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "5.0"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
+const GAME_VERSION = "5.1"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -516,8 +516,7 @@ async function setupHero(heroBaseCode, dbHeroId, secondaryDeckData = null) {
                 }
             }
         }
-    }
-    
+    } // <--- C'était cette accolade fermante en trop qui coupait la fonction !
 
     if (secondaryDeckData) {
         heroSecDeck = [...secondaryDeckData];
