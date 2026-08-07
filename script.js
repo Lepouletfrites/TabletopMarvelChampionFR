@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "4.7"; // Correction du chargement hors-ligne des faces B (linked_card)
+const GAME_VERSION = "4.8"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -12,7 +12,7 @@ if (typeof CARDS_DATA !== 'undefined') {
         // Ajout de la carte principale (Face A ou Standard)
         localDatabase[card.code] = card;
         
-        // ✨ CORRECTION : On déballe les faces B cachées pour qu'elles soient trouvées hors-ligne !
+        // On déballe les faces B cachées pour qu'elles soient trouvées hors-ligne !
         if (card.linked_card) {
             localDatabase[card.linked_card.code] = card.linked_card;
         }
@@ -381,7 +381,7 @@ btnLoadHero.addEventListener('click', async () => {
     saveGameState();
 });
 
-// Le chargement d'un deck custom par URL est LA SEULE FOIS où l'on utilise un Fetch API
+// ⚡ LECTURE DIRECTE SANS PROXY POUR LES DECKS (MARVELCDB L'AUTORISE DE BASE)
 btnLoadCustomDeck.addEventListener('click', async () => {
     const inputVal = deckUrlInput.value.trim();
     const urlMatch = inputVal.match(/(?:decklist|deck)\/(?:view|edit)?\/?(\d+)/);
@@ -402,8 +402,8 @@ btnLoadCustomDeck.addEventListener('click', async () => {
 
         for (let url of endpoints) {
             try {
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                let res = await fetch(proxyUrl);
+                // RETOUR À LA VERSION SIMPLE : MARVELCDB BLOQUAIT LE PROXY POUR LES DECKS
+                let res = await fetch(url);
                 if (res.ok) { deckData = await res.json(); break; }
             } catch (e) {}
         }
@@ -623,7 +623,7 @@ btnLoadVillain.addEventListener('click', async () => {
     // --- CHARGEMENT DU MÉCHANT ---
     if (currentVillainStages.length > currentVillainStageIndex) {
         let vCode = currentVillainStages[currentVillainStageIndex];
-        let vData = await fetchAPI(vCode);
+        let vData = await fetchAPI(vCode) || await fetchAPI(vCode.replace(/[ab]$/, ''));
         if (vData) {
             let vDom = buildCardDOM(vData);
             putOnBoardAt(vDom, spawnX, spawnY, false);
@@ -635,7 +635,7 @@ btnLoadVillain.addEventListener('click', async () => {
         let rawCode = currentVillainSchemes[0];
         let baseCode = rawCode.replace(/[ab]$/, '');
         
-        let frontData = await fetchAPI(rawCode); 
+        let frontData = await fetchAPI(rawCode) || await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode); 
         let backData = await fetchAPI(baseCode + 'b'); 
         
         if (frontData) {
@@ -792,7 +792,8 @@ btnLoadVillain.addEventListener('click', async () => {
         }
         
         let baseCode = code.replace(/[ab]$/, '');
-        let frontData = await fetchAPI(code);
+        // On essaie d'abord avec le code exact fourni puis on ajoute les suffixes
+        let frontData = await fetchAPI(code) || await fetchAPI(baseCode + 'a') || await fetchAPI(baseCode);
         let backData = await fetchAPI(baseCode + 'b');
 
         if (frontData) {
