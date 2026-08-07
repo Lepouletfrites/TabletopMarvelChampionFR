@@ -267,7 +267,7 @@ const MARVEL_DB = {
         { id: "exper_weapon", name: "Armes Expérimentales", card_set_code: "exper_weapon" , secondary_set_code: "exper_weapon"},
         { id: "hydra_assault", name: "Assaut de l'Hydra", card_set_code: "hydra_assault" },
         { id: "hydra_patrol", name: "Patrouille de l'Hydra", card_set_code: "hydra_patrol" },
-        { id: "weapon_master", name: "Maître d'Armes", card_set_code: "weapon_master" },
+        { id: "weapon_master", name: "Maître d'Armes", card_set_code: "weap_master" },
 
         // Kang
         { id: "temporal", name: "Temporel", card_set_code: "temporal" },
