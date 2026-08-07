@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "4.6"; // Suppression totale des appels API pour les cartes (100% local)
+const GAME_VERSION = "4.7"; // Correction du chargement hors-ligne des faces B (linked_card)
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -9,7 +9,13 @@ let localDatabase = {};
 
 if (typeof CARDS_DATA !== 'undefined') {
     CARDS_DATA.forEach(card => {
+        // Ajout de la carte principale (Face A ou Standard)
         localDatabase[card.code] = card;
+        
+        // ✨ CORRECTION : On déballe les faces B cachées pour qu'elles soient trouvées hors-ligne !
+        if (card.linked_card) {
+            localDatabase[card.linked_card.code] = card.linked_card;
+        }
     });
     console.log("✅ Base de données locale chargée ! (" + Object.keys(localDatabase).length + " cartes prêtes)");
 } else {
@@ -259,19 +265,16 @@ function initMenus() {
 async function fetchAPI(cardCode) {
     if (!localDatabase) return null;
 
-    let cardData = null;
-    
-    // 1. Recherche exacte (ex: "01001a" ou "01001")
-    if (localDatabase[cardCode]) {
-        cardData = localDatabase[cardCode];
-    } 
-    // 2. Recherche sans le suffixe "a" ou "b" (ex: on demande "16061a", on trouve "16061")
-    else if (localDatabase[cardCode.replace(/[ab]$/, '')]) {
-        cardData = localDatabase[cardCode.replace(/[ab]$/, '')];
-    }
-    // 3. Recherche avec le suffixe "a" (ex: on demande "16061", on trouve "16061a")
-    else if (localDatabase[cardCode + 'a']) {
-        cardData = localDatabase[cardCode + 'a'];
+    // 1. Recherche exacte
+    let cardData = localDatabase[cardCode];
+
+    // 2. Recherche intelligente si la lettre diffère (ex: 16061 vs 16061a)
+    if (!cardData) {
+        if (cardCode.endsWith('a')) {
+            cardData = localDatabase[cardCode.slice(0, -1)]; // on demande 1a, on trouve 1
+        } else if (!cardCode.endsWith('b') && !cardCode.endsWith('c')) {
+            cardData = localDatabase[cardCode + 'a']; // on demande 1, on trouve 1a
+        }
     }
 
     if (!cardData) {
