@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "4.3"; // Retrait de l'auto-environnement et ajout de start_set_aside
+const GAME_VERSION = "4.4"; // Ajout des sets modulaires obligatoires (mandatory_modulars)
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -703,6 +703,13 @@ btnLoadVillain.addEventListener('click', async () => {
     const selectedMods = Array.from(document.querySelectorAll('.mod-checkbox:checked')).map(cb => cb.value);
     
     let modularsToLoad = new Set(selectedMods);
+    
+    // --- NOUVEAU : Chargement des sets modulaires OBLIGATOIRES (sans vérifier la case cochée) ---
+    if (villainDef.mandatory_modulars) {
+        villainDef.mandatory_modulars.forEach(modId => modularsToLoad.add(modId));
+    }
+
+    // --- Chargement des sets modulaires par DÉFAUT (si la case est cochée) ---
     if (useDefaultMod && villainDef.default_modulars) {
         villainDef.default_modulars.forEach(modId => modularsToLoad.add(modId));
     }
@@ -780,7 +787,7 @@ btnLoadVillain.addEventListener('click', async () => {
         }
     });
 
-    // --- NOUVEAU : PLACER LES CARTES DE CÔTÉ ---
+    // --- PLACER LES CARTES DE CÔTÉ ---
     for (let code of cardsToSetAside) {
         let idx = encounterDeck.indexOf(code);
         if (idx !== -1) {
