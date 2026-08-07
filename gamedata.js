@@ -130,7 +130,8 @@ const MARVEL_DB = {
             card_set_code: "crossbones",
             stages: ["04058","04059","04060"],
             schemes: ["04061","04062","04063"],
-            default_modulars: ["exper_weapon","legions_of_hydra","hydra_assault","weapon_master"]
+            mandatory_modulars: ["exper_weapon"],
+            default_modulars: ["legions_of_hydra","hydra_assault","weapon_master"]
         },
         { 
             id: "absorbing_man", 
@@ -146,7 +147,8 @@ const MARVEL_DB = {
             card_set_code: "taskmaster",
             stages: ["04093","04094","04095"], 
             schemes: ["04096"], 
-            default_modulars: ["weapon_master","hydra_patrol"],
+            mandatory_modulars: ["hydra_patrol"],
+            default_modulars: ["weapon_master"],
             start_on_board: ["04154"],
             start_set_aside: ["04097","04098","04099","04100"]
         },
@@ -172,11 +174,38 @@ const MARVEL_DB = {
         
         },
         { id: "kang", name: "Kang le Conquérant", card_set_code: "kang", stages: [], schemes: [], default_modulars: ["temporal"] },
-        { id: "drang", name: "Drang de la Confrérie Badoon", card_set_code: "brotherhood_of_badoon", stages: [], schemes: [], default_modulars: ["band_of_badoon"] },
+        { 
+            id: "drang",
+            name: "Drang de la Confrérie Badoon",
+            card_set_code: "brotherhood_of_badoon",
+            stages: ["16058","16059","16060"], 
+            schemes: ["16061","16062"],
+            mandatory_modulars: ["ship_command"],
+            default_modulars: ["band_of_badoon"],
+            start_on_board: ["16063","16142"]
+        },
         { id: "collector_infiltrate", name: "Le Collectionneur - Infiltration du Musée", card_set_code: "infiltrate_the_museum", stages: [], schemes: [], default_modulars: ["galactic_artifacts"] },
         { id: "collector_escape", name: "Le Collectionneur - Fuite du Musée", card_set_code: "escape_the_museum", stages: [], schemes: [], default_modulars: ["galactic_artifacts"] },
-        { id: "nebula_villain", name: "Nébula (Méchante)", card_set_code: "nebula_villain", stages: [], schemes: [], default_modulars: ["ship_command"] },
-        { id: "ronan", name: "Ronan l'Accusateur", card_set_code: "ronan", stages: [], schemes: [], default_modulars: ["kree_militants"] },
+        { 
+            id: "nebula_villain",
+            name: "Nébula (Méchante)",
+            card_set_code: "nebula_villain",
+            stages: ["16088","16089","16090"],
+            schemes: ["16091","16092"],
+            mandatory_modulars: ["power_stone","ship_command"],
+            default_modulars: ["space_pirates"],
+            start_on_board: ["16149","16093","16142"]
+        },
+        { 
+            id: "ronan", 
+            name: "Ronan l'Accusateur", 
+            card_set_code: "ronan", 
+            stages: ["16103","16104","16105"], 
+            schemes: ["16106","16106"],
+            mandatory_modulars: ["power_stone","ship_command"],
+            default_modulars: ["kree_militants"],
+            start_on_board: ["16108","16109","16142","16149"]
+        },
         { id: "ebony_maw", name: "Ebony Maw", card_set_code: "ebony_maw", stages: [], schemes: [], default_modulars: ["black_order"] },
         { id: "tower_defense", name: "Défense de la Tour", card_set_code: "tower_defense", stages: [], schemes: [], default_modulars: ["black_order"] },
         {
@@ -184,8 +213,9 @@ const MARVEL_DB = {
             name: "Thanos (L'Ombre du Titan Fou)",
             card_set_code: "thanos",
             stages: ["21111", "21112", "21113"], 
-            schemes: ["21114", "21115"],         
-            default_modulars: ["infinity_gauntlet","children_of_thanos","black_order"]
+            schemes: ["21114", "21115"],   
+            mandatory_modulars: ["infinity_gauntlet"],
+            default_modulars: ["children_of_thanos","black_order"]
         },
         { id: "hela", name: "Hela", card_set_code: "hela", stages: [], schemes: [], default_modulars: ["legions_of_hel"] },
         { id: "loki", name: "Loki", card_set_code: "loki", stages: [], schemes: [], default_modulars: ["enchantress"] },
@@ -249,6 +279,7 @@ const MARVEL_DB = {
         { id: "menagerie_medley", name: "Méli-mélo de la Ménagerie", card_set_code: "menagerie_medley" },
         { id: "galactic_artifacts", name: "Artéfacts Galactiques", card_set_code: "galactic_artifacts" },
         { id: "kree_militants", name: "Militants Kree", card_set_code: "kree_militants" },
+        { id: "power_stone", name: "Pierre de pouvoir", card_set_code: "power_stone" },
         { id: "space_pirates", name: "Pirates de l'Espace", card_set_code: "space_pirates" },
         { id: "ship_command", name: "Commandement du Vaisseau", card_set_code: "ship_command" },
         { id: "badoon_headhunter", name: "Chasseur de Têtes Badoon", card_set_code: "badoon_headhunter" },
