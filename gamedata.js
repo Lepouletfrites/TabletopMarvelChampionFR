@@ -147,7 +147,8 @@ const MARVEL_DB = {
             stages: ["04093","04094","04095"], 
             schemes: ["04096"], 
             default_modulars: ["weapon_master","hydra_patrol"],
-            start_on_board: ["04154"]
+            start_on_board: ["04154"],
+            start_set_aside: ["04097","04098","04099","04100"]
         },
         {
             id: "zola", 
@@ -155,6 +156,7 @@ const MARVEL_DB = {
             card_set_code: "zola", 
             stages: ["04109","04110","04111"],
             schemes: ["04112","04113"], 
+            start_on_board: ["04122","04114"],
             default_modulars: ["under_attack"]
         },
         {
@@ -165,7 +167,8 @@ const MARVEL_DB = {
             schemes: ["04128","04129"], 
             default_modulars: ["hydra_assault","hydra_patrol"],
             secondary_deck: ["04140", "04141", "04142", "04143", "04144"],
-            start_on_board: ["04139"]
+            start_on_board: ["04139"],
+            start_set_aside: ["04130"]
         
         },
         { id: "kang", name: "Kang le Conquérant", card_set_code: "kang", stages: [], schemes: [], default_modulars: ["temporal"] },
