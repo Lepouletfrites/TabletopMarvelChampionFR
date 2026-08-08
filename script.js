@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "5.2"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
+const GAME_VERSION = "5.3"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -1377,22 +1377,26 @@ function setupCardInteractions(card) {
         if (activeTokenType) return; 
         if (card.classList.contains('in-hand')) return;
         
-        // Si la carte est face cachée, le double-clic la retourne (la révèle)
-        if (card.dataset.flipped === 'true') {
+        // On récupère les données de la carte pour connaître son type
+        let data = JSON.parse(card.dataset.cardData);
+        const isEncounter = data.faction_code === 'encounter' || 
+                            data.type_code === 'minion' || 
+                            data.type_code === 'side_scheme' || 
+                            data.type_code === 'obligation' || 
+                            data.type_code === 'villain';
+        
+        // Si c'est une carte RENCONTRE face cachée, le double-clic la retourne
+        if (isEncounter && card.dataset.flipped === 'true') {
             card.dataset.flipped = 'false';
             card.querySelector('.card-front').src = card.dataset.frontUrl;
             
-            showZoom(card.dataset.frontUrl); // Optionnel : affiche la carte en grand une fois révélée
-
-            if (card.id === 'hero-card-element') {
-                heroHandSizeSpan.innerText = card.dataset.handSizeA;
-            }
+            showZoom(card.dataset.frontUrl); 
             
             updateCardOrientation(card);
             syncTokenVisuals(card); 
             saveGameState();
         } 
-        // Si elle est déjà face visible, le double-clic l'incline / la redresse
+        // Si c'est une carte JOUEUR (face visible ou cachée) OU une carte Rencontre face visible, on l'incline
         else {
             card.classList.toggle('exhausted');
             saveGameState();
