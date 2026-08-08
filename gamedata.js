@@ -84,7 +84,7 @@ const MARVEL_DB = {
         { id: "deadpool", name: "Deadpool", hero_code: "", deck: [] },
         { id: "bishop", name: "Bishop", hero_code: "", deck: [] },
         { id: "magik", name: "Magik", hero_code: "", deck: [] },
-        { id: "iceman", name: "Iceberg (Iceman)", hero_code: "iceman", deck: [] ,start_on_board: ["46002","46002","46002","46002","46002","46002"] },
+        { id: "iceman", name: "Iceberg (Iceman)", hero_code: "46001a", deck: [] ,start_on_board: ["46002","46002","46002","46002","46002","46002"] },
         { id: "jubilee", name: "Jubilé", hero_code: "", deck: [] },
         { id: "nightcrawler", name: "Diable Manquant (Nightcrawler)", hero_code: "", deck: [] },
         { id: "magneto", name: "Magnéto", hero_code: "", deck: [] }
@@ -206,7 +206,14 @@ const MARVEL_DB = {
             default_modulars: ["kree_militants"],
             start_on_board: ["16108","16109","16142","16149"]
         },
-        { id: "ebony_maw", name: "Ebony Maw", card_set_code: "ebony_maw", stages: [], schemes: [], default_modulars: ["black_order"] },
+        { 
+            id: "ebony_maw",
+            name: "Ebony Maw",
+            card_set_code: "ebony_maw", 
+            stages: ["21071","21072","21073"], 
+            schemes: ["21074","21075"], 
+            default_modulars: ["black_order","armies_of_titan"] 
+        },
         { id: "tower_defense", name: "Défense de la Tour", card_set_code: "tower_defense", stages: [], schemes: [], default_modulars: ["black_order"] },
         {
             id: "thanos",
@@ -289,6 +296,7 @@ const MARVEL_DB = {
         { id: "black_order", name: "L'ordre noir", card_set_code: "black_order" },
         { id: "infinity_gauntlet", name: "Gant de l'Infini", card_set_code: "infinity_gauntlet", start_on_board: ["21129"], secondary_set_code: "infinity_gauntlet" },
         { id: "children_of_thanos", name: "Enfant de thanos", card_set_code: "children_of_thanos" },
+        { id: "armies_of_titan", name: "Armee de titan", card_set_code: "armies_of_titan" },
         { id: "galactic_armory", name: "Armurerie Galactique", card_set_code: "galactic_armory" },
         { id: "legions_of_hel", name: "Légions de Hel", card_set_code: "legions_of_hel" },
         { id: "frost_giants", name: "Géants des Glaces", card_set_code: "frost_giants" },
