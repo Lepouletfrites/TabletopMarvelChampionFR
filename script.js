@@ -1,5 +1,5 @@
 // --- VERSION DU JEU (Change ce numéro pour forcer le nettoyage du cache/localStorage chez les utilisateurs) ---
-const GAME_VERSION = "5.1"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
+const GAME_VERSION = "5.2"; // Retrait du proxy pour les URL de decks (bloqué par MarvelCDB)
 
 // --- DÉTECTION D'ENVIRONNEMENT ---
 const isWebBrowser = false;
@@ -1372,18 +1372,45 @@ function discardCard(cardElement, forcedPile = null) {
 }
 
 function setupCardInteractions(card) {
-    card.addEventListener('dblclick', () => {
+    // --- NOUVEAU : Logique centralisée pour le double-clic / double-tap ---
+    const handleDoubleClick = () => {
         if (activeTokenType) return; 
-        if (!card.classList.contains('in-hand')) card.classList.toggle('exhausted');
+        if (card.classList.contains('in-hand')) return;
+        
+        // Si la carte est face cachée, le double-clic la retourne (la révèle)
+        if (card.dataset.flipped === 'true') {
+            card.dataset.flipped = 'false';
+            card.querySelector('.card-front').src = card.dataset.frontUrl;
+            
+            showZoom(card.dataset.frontUrl); // Optionnel : affiche la carte en grand une fois révélée
+
+            if (card.id === 'hero-card-element') {
+                heroHandSizeSpan.innerText = card.dataset.handSizeA;
+            }
+            
+            updateCardOrientation(card);
+            syncTokenVisuals(card); 
+            saveGameState();
+        } 
+        // Si elle est déjà face visible, le double-clic l'incline / la redresse
+        else {
+            card.classList.toggle('exhausted');
+            saveGameState();
+        }
+    };
+
+    // Application au double-clic (Souris PC)
+    card.addEventListener('dblclick', () => {
+        handleDoubleClick();
     });
 
+    // Application au double-tap (Tactile Mobile)
     let lastTap = 0;
     card.addEventListener('touchend', (e) => {
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTap;
         if (tapLength < 300 && tapLength > 0) {
-            if (activeTokenType) return; 
-            if (!card.classList.contains('in-hand')) card.classList.toggle('exhausted');
+            handleDoubleClick();
             e.preventDefault();
             
             if (card.clickTimeout) {
@@ -1394,6 +1421,7 @@ function setupCardInteractions(card) {
         lastTap = currentTime;
     });
 
+    // --- LE RESTE DU MENU CONTEXTUEL NE CHANGE PAS ---
     card.addEventListener('contextmenu', (e) => {
         e.preventDefault(); e.stopPropagation();
         hideAllMenus();
@@ -1437,7 +1465,6 @@ function setupCardInteractions(card) {
         contextMenu.style.top = clientY + 'px';
     });
 }
-
 menuBanish.addEventListener('click', () => {
     if (targetCard) {
         banishedCards.push(targetCard.dataset.code);
